@@ -116,7 +116,11 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-4 bg-slate-50 border-b border-slate-100"><h3 class="font-semibold text-slate-700">Saldo Per Bangunan</h3></div>
+                            <div class="p-5 space-y-4" id="dash-bangunan-list"></div>
+                        </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div class="px-5 py-4 bg-slate-50 border-b border-slate-100"><h3 class="font-semibold text-slate-700">Saldo Per Ruang</h3></div>
                             <div class="p-5 space-y-4" id="dash-ruang-list"></div>
@@ -172,10 +176,10 @@
                                     <tr>
                                         <th class="px-4 py-3">Tanggal</th>
                                         <th class="px-4 py-3 min-w-[200px]">Uraian</th>
-                                        <th class="px-4 py-3">Ruang</th>
+                                        <th class="px-4 py-3">Bangunan/Ruang</th>
                                         <th class="px-4 py-3">Pos Belanja</th>
-                                        <th class="px-4 py-3 text-right text-emerald-700">Debet</th>
-                                        <th class="px-4 py-3 text-right text-red-600">Kredit</th>
+                                        <th class="px-4 py-3 text-right text-emerald-700">Pemasukan (Debet)</th>
+                                        <th class="px-4 py-3 text-right text-red-600">Pengeluaran (Kredit)</th>
                                         <th class="px-4 py-3 text-right text-blue-700">Saldo Akhir</th>
                                     </tr>
                                 </thead>

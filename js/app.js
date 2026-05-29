@@ -148,6 +148,7 @@ async function submitTransaksi() {
         keterangan: document.getElementById('input-keterangan').value
     };
     if (!p.tanggal || !p.uraian || !raw || !p.id_bangunan || !p.id_ruang) return UI.toast('Lengkapi form.', 'error');
+    if (document.getElementById('input-jenis').value === 'kredit' && !p.pos_belanja) return UI.toast('Harap pilih Pos Belanja untuk Pengeluaran (Kredit).', 'error');
 
     UI.showLoader();
     try {
@@ -183,7 +184,13 @@ function applyFilters() {
 
     let filtered = currentBukuKasData.filter(item => {
         let pass = true;
-        if (search && !item.uraian.toLowerCase().includes(search) && !item.keterangan.toLowerCase().includes(search)) pass = false;
+        
+        if (search) {
+            const u = (item.uraian || '').toLowerCase();
+            const k = (item.keterangan || '').toLowerCase();
+            if (!u.includes(search) && !k.includes(search)) pass = false;
+        }
+        
         if (ruang && item.id_ruang !== ruang) pass = false;
         if (tglAwal && item.tanggal < tglAwal) pass = false;
         if (tglAkhir && item.tanggal > tglAkhir) pass = false;
@@ -198,7 +205,7 @@ function applyFilters() {
                 <tr class="hover:bg-slate-50 border-b border-slate-50">
                     <td class="px-4 py-3 whitespace-nowrap text-slate-500">${item.tanggal}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">${item.uraian}<br><span class="text-xs text-slate-400 font-normal">${item.keterangan}</span></td>
-                    <td class="px-4 py-3 text-xs text-slate-600">${item.ruang}</td>
+                    <td class="px-4 py-3 text-xs text-slate-600">${item.bangunan} / ${item.ruang}</td>
                     <td class="px-4 py-3 text-sm">${item.pos || '-'}</td>
                     <td class="px-4 py-3 text-right text-emerald-600 font-medium">${item.debet > 0 ? UI.formatRp(item.debet) : '-'}</td>
                     <td class="px-4 py-3 text-right text-red-600 font-medium">${item.kredit > 0 ? UI.formatRp(item.kredit) : '-'}</td>
@@ -217,6 +224,16 @@ async function loadDashboard() {
             document.getElementById('dash-pemasukan').textContent = UI.formatRp(res.data.totalPemasukan);
             document.getElementById('dash-pengeluaran').textContent = UI.formatRp(res.data.totalPengeluaran);
             document.getElementById('dash-saldo').textContent = UI.formatRp(res.data.totalSaldo);
+
+            document.getElementById('dash-bangunan-list').innerHTML = res.data.ringkasanBangunan.map(b => `
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <span class="font-medium text-slate-700">${b.nama}</span>
+                    <div class="text-right">
+                        <div class="text-sm font-bold text-slate-800">${UI.formatRp(b.saldo)}</div>
+                        <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
+                    </div>
+                </div>
+            `).join('') || '<p class="text-sm text-slate-400">Belum ada data.</p>';
 
             document.getElementById('dash-ruang-list').innerHTML = res.data.ringkasanRuang.map(r => `
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2">
