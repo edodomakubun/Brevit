@@ -43,6 +43,9 @@ function doPost(e) {
       case "export_laporan":
         result = handleExportLaporan(payload);
         break;
+      case "save_pengaturan":
+        result = handleSavePengaturan(payload);
+        break;
     }
 
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
@@ -103,8 +106,46 @@ function handleGetMaster() {
     nama: r[2],
   }));
   const pos = getSheetData("Master_Pos").map((r) => ({ id: r[0], nama: r[1] }));
+  
+  const pgData = getSheetData("Pengaturan_Akses");
+  const pengaturan = {};
+  pgData.forEach(r => pengaturan[r[0]] = r[1]);
 
-  return { status: "success", data: { bangunan: bgn, ruang: rng, pos: pos } };
+  return { status: "success", data: { bangunan: bgn, ruang: rng, pos: pos, pengaturan: pengaturan } };
+}
+
+function handleSavePengaturan(payload) {
+  if (payload.username !== "admin" && payload.username !== "kepsek") {
+    throw new Error("Hanya admin/kepsek yang dapat mengubah pengaturan.");
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("Pengaturan_Akses");
+  if (!sheet) {
+    sheet = ss.insertSheet("Pengaturan_Akses");
+    sheet.appendRow(["key", "value"]);
+  }
+  
+  // payload.pengaturan object
+  const peng = payload.pengaturan || {};
+  
+  // Convert current sheet to map
+  const data = sheet.getDataRange().getValues();
+  const keysRowMap = {};
+  for (let i = 1; i < data.length; i++) {
+    keysRowMap[data[i][0]] = i + 1;
+  }
+  
+  // Update or insert
+  for (const [key, value] of Object.entries(peng)) {
+    if (keysRowMap[key]) {
+      sheet.getRange(keysRowMap[key], 2).setValue(value);
+    } else {
+      sheet.appendRow([key, value]);
+      keysRowMap[key] = sheet.getLastRow();
+    }
+  }
+  
+  return { status: "success", message: "Pengaturan berhasil disimpan." };
 }
 
 function handleAddMaster(payload) {
@@ -418,6 +459,16 @@ function setupDatabase() {
         "created_by",
       ],
       dummyData: [],
+    },
+    {
+      name: "Pengaturan_Akses",
+      headers: ["key", "value"],
+      dummyData: [
+        ["hide_debet_alokasi", false],
+        ["hide_saldo_dashboard", false],
+        ["hide_saldo_bangunan", false],
+        ["hide_rincian_bangunan", false]
+      ],
     },
   ];
 

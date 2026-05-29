@@ -85,6 +85,9 @@
                     <a href="#" data-page="alokasi-dana" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
                         <i class="ph ph-wallet text-xl"></i><span class="font-medium text-sm">Alokasi Dana</span>
                     </a>
+                    <a href="#" data-page="aturan" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
+                        <i class="ph ph-shield-check text-xl"></i><span class="font-medium text-sm">Aturan (Hak Akses)</span>
+                    </a>
                 </div>
             </nav>
 
@@ -125,14 +128,14 @@
                             <p class="text-sm font-medium text-slate-500 mb-1">Total Pengeluaran</p>
                             <h3 class="text-2xl font-bold text-slate-800" id="dash-pengeluaran">Rp0</h3>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-emerald-500">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-emerald-500" id="widget-total-saldo">
                             <p class="text-sm font-medium text-slate-500 mb-1">Total Saldo</p>
                             <h3 class="text-2xl font-bold text-slate-800" id="dash-saldo">Rp0</h3>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="widget-saldo-bangunan">
                             <div class="px-5 py-4 bg-slate-50 border-b border-slate-100"><h3 class="font-semibold text-slate-700">Saldo Per Bangunan</h3></div>
                             <div class="p-5 space-y-4" id="dash-bangunan-list"></div>
                         </div>
@@ -143,7 +146,7 @@
                     </div>
 
                     <!-- HIERARCHY SECTION -->
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="widget-rincian-bangunan">
                         <div class="px-5 py-4 bg-slate-50 border-b border-slate-100"><h3 class="font-semibold text-slate-700">Rincian Saldo Bangunan & Ruang</h3></div>
                         <div class="p-5" id="dash-hierarki-list"></div>
                     </div>
@@ -241,6 +244,59 @@
                                     <!-- Rendered via JS -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE: Aturan -->
+                <div id="page-aturan" class="page-content hidden animate-fade-in flex flex-col h-full">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">Aturan & Hak Akses</h2>
+                        <p class="text-slate-500 text-sm">Kelola visibilitas informasi untuk akun Bendahara.</p>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-3xl">
+                        <div class="p-6">
+                            <h3 class="font-bold text-slate-800 mb-4 border-b pb-2">Pengaturan Visibilitas Bendahara</h3>
+                            <div class="space-y-4">
+                                <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">
+                                    <div>
+                                        <div class="font-medium text-slate-800">Sembunyikan Debet Khusus Alokasi Dana</div>
+                                        <div class="text-xs text-slate-500">Nominal debet pada transaksi "Alokasi Dana" akan disamarkan menjadi Rp *** di Buku Kas.</div>
+                                    </div>
+                                    <input type="checkbox" id="setting-hide-debet-alokasi" class="w-5 h-5 accent-blue-600">
+                                </label>
+                                
+                                <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">
+                                    <div>
+                                        <div class="font-medium text-slate-800">Sembunyikan Total Saldo di Dashboard</div>
+                                        <div class="text-xs text-slate-500">Menyembunyikan widget Sisa Saldo utama di halaman Dashboard.</div>
+                                    </div>
+                                    <input type="checkbox" id="setting-hide-saldo-dashboard" class="w-5 h-5 accent-blue-600">
+                                </label>
+                                
+                                <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">
+                                    <div>
+                                        <div class="font-medium text-slate-800">Sembunyikan Saldo Per Bangunan di Dashboard</div>
+                                        <div class="text-xs text-slate-500">Menyembunyikan kartu-kartu ringkasan saldo per bangunan.</div>
+                                    </div>
+                                    <input type="checkbox" id="setting-hide-saldo-bangunan" class="w-5 h-5 accent-blue-600">
+                                </label>
+                                
+                                <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">
+                                    <div>
+                                        <div class="font-medium text-slate-800">Sembunyikan Rincian Saldo Bangunan & Ruang</div>
+                                        <div class="text-xs text-slate-500">Menyembunyikan daftar hierarki rincian saldo per ruang di Dashboard.</div>
+                                    </div>
+                                    <input type="checkbox" id="setting-hide-rincian-bangunan" class="w-5 h-5 accent-blue-600">
+                                </label>
+                            </div>
+                            
+                            <div class="mt-6 pt-4 border-t flex justify-end">
+                                <button onclick="saveAturan()" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-lg font-medium shadow flex items-center gap-2">
+                                    <i class="ph ph-floppy-disk"></i> Simpan Pengaturan
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

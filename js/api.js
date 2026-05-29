@@ -3,7 +3,7 @@
  */
 
 // TODO: Ganti URL ini dengan Web App URL dari Google Apps Script setelah di-deploy
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyZZ-AEV-MdGdtPwg9_dFjTH8D9wbWQO7sPIie84rZp6QHSE9lcF6cqXJnLaUlNLQliUw/exec"; 
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwXnTlkObA38na984X9tIm6Xk081_2V8AZ8DtpL3_yw3hZFxeSMCbOB8sU6ca8L-b7p1Q/exec"; 
 
 const API = {
     /**

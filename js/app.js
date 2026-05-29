@@ -47,6 +47,8 @@ const UI = {
             loadMasterData();
         } else if (pageId === 'alokasi-dana') {
             loadAlokasiDana();
+        } else if (pageId === 'aturan') {
+            loadAturan();
         }
     },
     formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0); },
@@ -335,6 +337,15 @@ function applyFilters() {
                 `;
             }
 
+            let displayDebet = (item.debet > 0) ? UI.formatRp(item.debet) : '-';
+            
+            // Aturan Visibilitas: Sembunyikan Debet Alokasi Dana untuk Bendahara
+            if (currentUser && currentUser.role === 'bendahara' && 
+                masterData.pengaturan?.hide_debet_alokasi === true && 
+                item.uraian === 'Alokasi Dana') {
+                displayDebet = 'Rp ***';
+            }
+
             html += `
                 <tr class="hover:bg-blue-50 transition-colors">
                     <td class="px-4 py-3 whitespace-nowrap text-slate-500">${UI.formatDateID(item.tanggal)}</td>
@@ -342,7 +353,7 @@ function applyFilters() {
                     <td class="px-4 py-3 text-xs text-slate-500">${item.keterangan || '-'}</td>
                     <td class="px-4 py-3 text-xs text-slate-600 font-medium">${item.ruang}</td>
                     <td class="px-4 py-3 text-sm">${item.pos || '-'}</td>
-                    <td class="px-4 py-3 text-right text-emerald-600 font-medium">${item.debet > 0 ? UI.formatRp(item.debet) : '-'}</td>
+                    <td class="px-4 py-3 text-right text-emerald-600 font-medium">${displayDebet}</td>
                     <td class="px-4 py-3 text-right text-red-600 font-medium">${item.kredit > 0 ? UI.formatRp(item.kredit) : '-'}</td>
                     <td class="px-4 py-3 text-right text-blue-700 font-bold">${UI.formatRp(item.saldo_akhir)}</td>
                 </tr>
@@ -456,6 +467,25 @@ function loadDashboard() {
         
         hierarkiList.innerHTML = hierarkiHTML || '<p class="text-sm text-slate-400">Belum ada data hierarki.</p>';
     }
+
+    // Terapkan Pengaturan Visibilitas untuk Bendahara
+    if (currentUser && currentUser.role === 'bendahara' && masterData.pengaturan) {
+        const p = masterData.pengaturan;
+        if (document.getElementById('widget-total-saldo')) {
+            document.getElementById('widget-total-saldo').style.display = p.hide_saldo_dashboard ? 'none' : 'block';
+        }
+        if (document.getElementById('widget-saldo-bangunan')) {
+            document.getElementById('widget-saldo-bangunan').style.display = p.hide_saldo_bangunan ? 'none' : 'block';
+        }
+        if (document.getElementById('widget-rincian-bangunan')) {
+            document.getElementById('widget-rincian-bangunan').style.display = p.hide_rincian_bangunan ? 'none' : 'block';
+        }
+    } else {
+        // Tampilkan semua jika bukan bendahara atau pengaturan belum dimuat
+        if (document.getElementById('widget-total-saldo')) document.getElementById('widget-total-saldo').style.display = 'block';
+        if (document.getElementById('widget-saldo-bangunan')) document.getElementById('widget-saldo-bangunan').style.display = 'block';
+        if (document.getElementById('widget-rincian-bangunan')) document.getElementById('widget-rincian-bangunan').style.display = 'block';
+    }
 }
 
 function loadAlokasiDana() {
@@ -512,7 +542,41 @@ function loadAlokasiDana() {
     tbody.innerHTML = html;
 }
 
-async function submitAlokasi() {
+// --- Pengaturan / Aturan ---
+function loadAturan() {
+    const p = masterData.pengaturan || {};
+    document.getElementById('setting-hide-debet-alokasi').checked = p.hide_debet_alokasi === true || String(p.hide_debet_alokasi) === 'true';
+    document.getElementById('setting-hide-saldo-dashboard').checked = p.hide_saldo_dashboard === true || String(p.hide_saldo_dashboard) === 'true';
+    document.getElementById('setting-hide-saldo-bangunan').checked = p.hide_saldo_bangunan === true || String(p.hide_saldo_bangunan) === 'true';
+    document.getElementById('setting-hide-rincian-bangunan').checked = p.hide_rincian_bangunan === true || String(p.hide_rincian_bangunan) === 'true';
+}
+
+async function saveAturan() {
+    const p = {
+        hide_debet_alokasi: document.getElementById('setting-hide-debet-alokasi').checked,
+        hide_saldo_dashboard: document.getElementById('setting-hide-saldo-dashboard').checked,
+        hide_saldo_bangunan: document.getElementById('setting-hide-saldo-bangunan').checked,
+        hide_rincian_bangunan: document.getElementById('setting-hide-rincian-bangunan').checked
+    };
+    
+    UI.showLoader('Menyimpan Pengaturan...');
+    try {
+        const res = await API.post('save_pengaturan', { username: currentUser.username, pengaturan: p });
+        if (res.status === 'success') {
+            UI.toast(res.message, 'success');
+            if(!masterData.pengaturan) masterData.pengaturan = {};
+            Object.assign(masterData.pengaturan, p);
+            await localforage.setItem('masterData', masterData);
+        } else {
+            throw new Error(res.message);
+        }
+    } catch(e) {
+        UI.toast('Gagal menyimpan: ' + e.message, 'error');
+    }
+    UI.hideLoader();
+}
+
+async function submitAlokasi(e) {
     const bgn = document.getElementById('alokasi-bangunan').value;
     const rng = document.getElementById('alokasi-ruang').value;
     const nominalRaw = document.getElementById('alokasi-nominal').value.replace(/[^0-9]/g, '');
