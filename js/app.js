@@ -192,7 +192,10 @@ async function checkSession() {
 function populateDropdowns() {
     const renderOpts = (arr, valKey, textKey) => '<option value="">-- Semua Ruang --</option>' + arr.map(x => `<option value="${x[valKey]}">${x[textKey]}</option>`).join('');
     document.getElementById('filter-ruang').innerHTML = renderOpts(masterData.ruang, 'id', 'nama');
-    document.getElementById('export-ruang').innerHTML = '<option value="all">-- Semua Ruang --</option>' + masterData.ruang.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
+    
+    if(document.getElementById('export-bangunan')) {
+        document.getElementById('export-bangunan').innerHTML = '<option value="all">-- Semua Bangunan --</option>' + masterData.bangunan.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
+    }
     
     const renderModalOpts = (arr) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
     document.getElementById('input-bangunan').innerHTML = renderModalOpts(masterData.bangunan);
@@ -389,18 +392,37 @@ function renderMasterData() {
 }
 
 async function handleExport(format) {
-    const ruang = document.getElementById('export-ruang').value;
+    const bId = document.getElementById('export-bangunan').value;
+    const rId = document.getElementById('export-ruang').value;
     document.getElementById('modal-export').classList.add('hidden');
     UI.showLoader(`Menyiapkan file ${format.toUpperCase()}...`);
     
     try {
-        const filtered = ruang === 'all' ? currentBukuKasData : currentBukuKasData.filter(d => d.id_ruang === ruang);
-        const namaRuang = ruang === 'all' ? 'Semua Ruang' : (filtered.length > 0 ? filtered[0].ruang : 'Tidak Diketahui');
+        let filtered = currentBukuKasData;
+        let titleContext = "Semua Bangunan & Ruang";
+        
+        if (bId !== 'all') {
+            filtered = filtered.filter(d => d.id_bangunan === bId);
+            const bInfo = masterData.bangunan.find(b => b.id === bId);
+            titleContext = `Bangunan: ${bInfo ? bInfo.nama : bId}`;
+            
+            if (rId !== 'all') {
+                filtered = filtered.filter(d => d.id_ruang === rId);
+                const rInfo = masterData.ruang.find(r => r.id === rId);
+                titleContext += ` - Ruang: ${rInfo ? rInfo.nama : rId}`;
+            } else {
+                titleContext += ` - Semua Ruang`;
+            }
+        }
+        
+        // Urutkan berdasarkan Bangunan, lalu Ruang, lalu Tanggal
+        filtered.sort((a, b) => {
+            if (a.bangunan !== b.bangunan) return a.bangunan.localeCompare(b.bangunan);
+            if (a.ruang !== b.ruang) return a.ruang.localeCompare(b.ruang);
+            return new Date(a.tanggal) - new Date(b.tanggal);
+        });
 
-        const headers = [["No", "Tanggal", "Uraian", "Keterangan", "Pos Belanja", "Debet (Rp)", "Kredit (Rp)", "Saldo Akhir (Rp)"]];
-        const rows = filtered.map((item, index) => [
-            index + 1, UI.formatDateID(item.tanggal), item.uraian, item.keterangan || '-', item.pos || '-', item.debet || 0, item.kredit || 0, item.saldo_akhir || 0
-        ]);
+        const headers = [["No", "Tanggal", "Uraian", "Keterangan", "Bangunan/Ruang", "Pos Belanja", "Pemasukan (Debet)", "Pengeluaran (Kredit)", "Saldo Akhir"]];
 
         if (format === 'xlsx') {
             const workbook = new ExcelJS.Workbook();
@@ -410,7 +432,7 @@ async function handleExport(format) {
             worksheet.getCell('A1').font = { bold: true, size: 14 };
             worksheet.getCell('A2').value = 'SDN PERCONTOHAN';
             worksheet.getCell('A2').font = { bold: true };
-            worksheet.getCell('A3').value = `Ruang Kelas: ${namaRuang}`;
+            worksheet.getCell('A3').value = `Konteks: ${titleContext}`;
             worksheet.addRow([]);
 
             const headerRow = worksheet.addRow(headers[0]);
@@ -421,23 +443,44 @@ async function handleExport(format) {
                 cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
 
-            rows.forEach((r) => {
+            let currentB = '';
+            let currentR = '';
+            let nomor = 1;
+
+            filtered.forEach((item) => {
+                if (item.bangunan !== currentB || item.ruang !== currentR) {
+                    currentB = item.bangunan;
+                    currentR = item.ruang;
+                    const groupRow = worksheet.addRow([`${currentB} - ${currentR}`, '', '', '', '', '', '', '', '']);
+                    worksheet.mergeCells(`A${groupRow.number}:I${groupRow.number}`);
+                    groupRow.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    groupRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } }; // bg-blue-900
+                    groupRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+                    nomor = 1; 
+                }
+
+                const r = [
+                    nomor++, UI.formatDateID(item.tanggal), item.uraian, item.keterangan || '-', 
+                    `${item.bangunan} / ${item.ruang}`, item.pos || '-', 
+                    item.debet || 0, item.kredit || 0, item.saldo_akhir || 0
+                ];
+                
                 const row = worksheet.addRow(r);
                 row.eachCell((cell, colNumber) => {
                     cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                    if (colNumber >= 6 && colNumber <= 8) cell.numFmt = '"Rp"#,##0';
+                    if (colNumber >= 7 && colNumber <= 9) cell.numFmt = '"Rp"#,##0';
                 });
             });
 
             worksheet.columns = [
-                { width: 6 }, { width: 14 }, { width: 40 }, { width: 35 }, { width: 20 }, { width: 18 }, { width: 18 }, { width: 18 }
+                { width: 6 }, { width: 14 }, { width: 40 }, { width: 35 }, { width: 25 }, { width: 20 }, { width: 18 }, { width: 18 }, { width: 18 }
             ];
 
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Laporan_BukuKas_${namaRuang}.xlsx`;
+            link.download = `Laporan_BukuKas.xlsx`;
             link.click();
         } 
         else if (format === 'pdf') {
@@ -451,26 +494,44 @@ async function handleExport(format) {
             doc.setFontSize(12);
             doc.text("SDN PERCONTOHAN", 40, 60);
             doc.setFont("helvetica", "normal");
-            doc.text(`Ruang Kelas: ${namaRuang}`, 40, 80);
+            doc.text(`Konteks: ${titleContext}`, 40, 80);
             
             const formatRpPdf = (val) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(val);
-            const bodyStr = rows.map(r => [r[0], r[1], r[2], r[3], r[4], formatRpPdf(r[5]), formatRpPdf(r[6]), formatRpPdf(r[7])]);
+            const bodyData = [];
+            
+            let currentB = '';
+            let currentR = '';
+            let nom = 1;
+
+            filtered.forEach(item => {
+                if (item.bangunan !== currentB || item.ruang !== currentR) {
+                    currentB = item.bangunan;
+                    currentR = item.ruang;
+                    bodyData.push([{ content: `${currentB} - ${currentR}`, colSpan: 9, styles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' } }]);
+                    nom = 1;
+                }
+                bodyData.push([
+                    nom++, UI.formatDateID(item.tanggal), item.uraian, item.keterangan || '-', 
+                    `${item.bangunan} / ${item.ruang}`, item.pos || '-', 
+                    formatRpPdf(item.debet || 0), formatRpPdf(item.kredit || 0), formatRpPdf(item.saldo_akhir || 0)
+                ]);
+            });
 
             doc.autoTable({
                 startY: 100,
                 head: headers,
-                body: bodyStr,
+                body: bodyData,
                 theme: 'grid',
-                styles: { fontSize: 9 },
+                styles: { fontSize: 8 },
                 headStyles: { fillColor: [30, 58, 138] },
                 columnStyles: {
-                    0: { halign: 'center', cellWidth: 30 },
-                    5: { halign: 'right' },
+                    0: { halign: 'center', cellWidth: 20 },
                     6: { halign: 'right' },
-                    7: { halign: 'right' }
+                    7: { halign: 'right' },
+                    8: { halign: 'right' }
                 }
             });
-            doc.save(`Laporan_BukuKas_${namaRuang}.pdf`);
+            doc.save(`Laporan_BukuKas.pdf`);
         }
         UI.toast('Berhasil mengunduh laporan.', 'success');
     } catch(e) { 
@@ -501,6 +562,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const filteredRuang = bId ? masterData.ruang.filter(r => r.id_bangunan === bId) : [];
         const renderModalOpts = (arr) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
         document.getElementById('input-ruang').innerHTML = bId ? renderModalOpts(filteredRuang) : '<option value="">-- Pilih Bangunan Dulu --</option>';
+    });
+    
+    // Dynamic Dropdown Bangunan -> Ruang (Modal Ekspor)
+    document.getElementById('export-bangunan')?.addEventListener('change', function(e) {
+        const bId = e.target.value;
+        const container = document.getElementById('export-ruang-container');
+        if (bId === 'all') {
+            container.style.display = 'none';
+            document.getElementById('export-ruang').innerHTML = '<option value="all">-- Semua Ruang --</option>';
+        } else {
+            container.style.display = 'block';
+            const filteredRuang = masterData.ruang.filter(r => r.id_bangunan === bId);
+            const renderModalOpts = (arr) => '<option value="all">-- Semua Ruang (di Bangunan ini) --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
+            document.getElementById('export-ruang').innerHTML = renderModalOpts(filteredRuang);
+        }
     });
 
     // Auto-refresh Dashboard button support (since it no longer fetches from API)
