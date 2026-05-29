@@ -41,6 +41,13 @@ const UI = {
             sidebar.classList.add('-translate-x-full');
             backdrop.classList.add('hidden');
         }
+
+        // Trigger load functions based on page
+        if (pageId === 'master-data') {
+            loadMasterData();
+        } else if (pageId === 'alokasi-dana') {
+            loadAlokasiDana();
+        }
     },
     formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0); },
     formatRpInput(val) {
@@ -124,9 +131,6 @@ async function syncAllData(isBackground = false) {
             applyFilters();
             loadDashboard();
             renderMasterData();
-         } else if (pageId === 'master-data') {
-            loadMasterData();
-        } else if (pageId === 'alokasi-dana') {
             loadAlokasiDana();
         } else {
             throw new Error(res.message);
