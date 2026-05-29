@@ -204,7 +204,8 @@ function applyFilters() {
             tbody.innerHTML += `
                 <tr class="hover:bg-slate-50 border-b border-slate-50">
                     <td class="px-4 py-3 whitespace-nowrap text-slate-500">${item.tanggal}</td>
-                    <td class="px-4 py-3 font-medium text-slate-800">${item.uraian}<br><span class="text-xs text-slate-400 font-normal">${item.keterangan}</span></td>
+                    <td class="px-4 py-3 font-medium text-slate-800">${item.uraian}</td>
+                    <td class="px-4 py-3 text-xs text-slate-500">${item.keterangan || '-'}</td>
                     <td class="px-4 py-3 text-xs text-slate-600">${item.bangunan} / ${item.ruang}</td>
                     <td class="px-4 py-3 text-sm">${item.pos || '-'}</td>
                     <td class="px-4 py-3 text-right text-emerald-600 font-medium">${item.debet > 0 ? UI.formatRp(item.debet) : '-'}</td>
@@ -269,28 +270,65 @@ async function handleExport(format) {
         const filtered = ruang === 'all' ? currentBukuKasData : currentBukuKasData.filter(d => d.id_ruang === ruang);
         const namaRuang = ruang === 'all' ? 'Semua Ruang' : (filtered.length > 0 ? filtered[0].ruang : 'Tidak Diketahui');
 
-        const headers = [["No", "Tanggal", "Uraian", "Pos Belanja", "Debet (Rp)", "Kredit (Rp)", "Saldo Akhir (Rp)"]];
+        const headers = [["No", "Tanggal", "Uraian", "Keterangan", "Pos Belanja", "Debet (Rp)", "Kredit (Rp)", "Saldo Akhir (Rp)"]];
         const rows = filtered.map((item, index) => [
-            index + 1, item.tanggal, item.uraian, item.pos || '-', item.debet, item.kredit, item.saldo_akhir
+            index + 1, item.tanggal, item.uraian, item.keterangan || '-', item.pos || '-', item.debet || 0, item.kredit || 0, item.saldo_akhir || 0
         ]);
 
         if (format === 'xlsx') {
-            const wsData = [
-                ["LAPORAN BUKU KAS REVITALISASI"],
-                ["SDN PERCONTOHAN"],
-                [`Ruang Kelas: ${namaRuang}`],
-                [],
-                ...headers,
-                ...rows
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Buku Kas');
+
+            // Header Teks
+            worksheet.getCell('A1').value = 'LAPORAN BUKU KAS REVITALISASI';
+            worksheet.getCell('A1').font = { bold: true, size: 14 };
+            worksheet.getCell('A2').value = 'SDN PERCONTOHAN';
+            worksheet.getCell('A2').font = { bold: true };
+            worksheet.getCell('A3').value = `Ruang Kelas: ${namaRuang}`;
+
+            // Tambahkan baris kosong
+            worksheet.addRow([]);
+
+            // Baris Judul Tabel (Header)
+            const headerRow = worksheet.addRow(headers[0]);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }; // Light blue background
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            });
+
+            // Isi Data
+            rows.forEach((r) => {
+                const row = worksheet.addRow(r);
+                row.eachCell((cell, colNumber) => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    // Format mata uang untuk Debet, Kredit, Saldo Akhir (Kolom 6, 7, 8)
+                    if (colNumber >= 6 && colNumber <= 8) {
+                        cell.numFmt = '"Rp"#,##0';
+                    }
+                });
+            });
+
+            // Lebar Kolom
+            worksheet.columns = [
+                { width: 6 },  // No
+                { width: 14 }, // Tanggal
+                { width: 40 }, // Uraian
+                { width: 35 }, // Keterangan
+                { width: 20 }, // Pos Belanja
+                { width: 18 }, // Debet
+                { width: 18 }, // Kredit
+                { width: 18 }  // Saldo Akhir
             ];
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            
-            // Atur lebar kolom
-            ws['!cols'] = [{wch: 5}, {wch: 12}, {wch: 40}, {wch: 20}, {wch: 15}, {wch: 15}, {wch: 15}];
-            
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Buku Kas");
-            XLSX.writeFile(wb, `Laporan_BukuKas_${namaRuang}.xlsx`);
+
+            // Download File
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Laporan_BukuKas_${namaRuang}.xlsx`;
+            link.click();
         } 
         else if (format === 'pdf') {
             const { jsPDF } = window.jspdf;
@@ -306,7 +344,7 @@ async function handleExport(format) {
             doc.text(`Ruang Kelas: ${namaRuang}`, 40, 80);
             
             const formatRpPdf = (val) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(val);
-            const bodyStr = rows.map(r => [r[0], r[1], r[2], r[3], formatRpPdf(r[4]), formatRpPdf(r[5]), formatRpPdf(r[6])]);
+            const bodyStr = rows.map(r => [r[0], r[1], r[2], r[3], r[4], formatRpPdf(r[5]), formatRpPdf(r[6]), formatRpPdf(r[7])]);
 
             doc.autoTable({
                 startY: 100,
@@ -317,9 +355,9 @@ async function handleExport(format) {
                 headStyles: { fillColor: [30, 58, 138] }, // bg-blue-900
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 30 },
-                    4: { halign: 'right' },
                     5: { halign: 'right' },
-                    6: { halign: 'right' }
+                    6: { halign: 'right' },
+                    7: { halign: 'right' }
                 }
             });
             doc.save(`Laporan_BukuKas_${namaRuang}.pdf`);
