@@ -529,7 +529,6 @@ async function submitAlokasi() {
     const tgl = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 
     const payload = {
-        action: 'submit_transaksi',
         tanggal: tgl,
         jenis: 'debet',
         uraian: 'Alokasi Dana',
@@ -544,7 +543,7 @@ async function submitAlokasi() {
 
     try {
         UI.showLoader('Menyimpan Alokasi...');
-        const res = await API.post(payload);
+        const res = await API.post('submit_transaksi', payload);
         UI.hideLoader();
         if (res.status === 'success') {
             document.getElementById('modal-alokasi').classList.add('hidden');
