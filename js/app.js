@@ -256,18 +256,79 @@ function applyFilters() {
         return pass;
     });
 
-    const tbody = document.getElementById('table-buku-kas');
-    if(!tbody) return;
+    const container = document.getElementById('buku-kas-container');
+    if(!container) return;
     
-    tbody.innerHTML = '';
-    if (filtered.length > 0) {
-        filtered.forEach(item => {
-            tbody.innerHTML += `
-                <tr class="hover:bg-slate-50 border-b border-slate-50">
+    container.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400 bg-white rounded-xl shadow-sm border border-slate-200">Data tidak ditemukan.</div>';
+        return;
+    }
+
+    // Group by bangunan
+    const grouped = {};
+    filtered.forEach(item => {
+        const b = item.bangunan || 'Tidak Diketahui';
+        if (!grouped[b]) grouped[b] = [];
+        grouped[b].push(item);
+    });
+
+    // Urutkan bangunan secara abjad
+    const sortedBangunan = Object.keys(grouped).sort();
+
+    let html = '';
+    sortedBangunan.forEach(b => {
+        const dataBangunan = grouped[b];
+        
+        // Urutkan data berdasarkan ruang lalu tanggal
+        dataBangunan.sort((a, b) => {
+            if (a.ruang !== b.ruang) return a.ruang.localeCompare(b.ruang);
+            return new Date(a.tanggal) - new Date(b.tanggal);
+        });
+
+        html += `
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div class="px-5 py-3 bg-blue-900 border-b border-blue-800 flex justify-between items-center">
+                <h3 class="font-bold text-white text-lg">Buku Kas - ${b}</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-3">Tanggal</th>
+                            <th class="px-4 py-3">Uraian</th>
+                            <th class="px-4 py-3">Keterangan</th>
+                            <th class="px-4 py-3">Ruang</th>
+                            <th class="px-4 py-3">Pos Belanja</th>
+                            <th class="px-4 py-3 text-right">Pemasukan</th>
+                            <th class="px-4 py-3 text-right">Pengeluaran</th>
+                            <th class="px-4 py-3 text-right">Saldo Akhir</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+        `;
+
+        let currentRuang = '';
+        dataBangunan.forEach(item => {
+            // Optional: Header sekunder per ruang jika dirasa perlu (saat ini sudah dipisah rapi)
+            if (currentRuang !== item.ruang) {
+                currentRuang = item.ruang;
+                html += `
+                <tr class="bg-slate-50 border-y border-slate-200">
+                    <td colspan="8" class="px-4 py-2 font-bold text-blue-800">
+                        <i class="ph ph-folder-open mr-2"></i> Ruang: ${currentRuang}
+                    </td>
+                </tr>
+                `;
+            }
+
+            html += `
+                <tr class="hover:bg-blue-50 transition-colors">
                     <td class="px-4 py-3 whitespace-nowrap text-slate-500">${UI.formatDateID(item.tanggal)}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">${item.uraian}</td>
                     <td class="px-4 py-3 text-xs text-slate-500">${item.keterangan || '-'}</td>
-                    <td class="px-4 py-3 text-xs text-slate-600">${item.bangunan} / ${item.ruang}</td>
+                    <td class="px-4 py-3 text-xs text-slate-600 font-medium">${item.ruang}</td>
                     <td class="px-4 py-3 text-sm">${item.pos || '-'}</td>
                     <td class="px-4 py-3 text-right text-emerald-600 font-medium">${item.debet > 0 ? UI.formatRp(item.debet) : '-'}</td>
                     <td class="px-4 py-3 text-right text-red-600 font-medium">${item.kredit > 0 ? UI.formatRp(item.kredit) : '-'}</td>
@@ -275,7 +336,16 @@ function applyFilters() {
                 </tr>
             `;
         });
-    } else tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Data tidak ditemukan.</td></tr>';
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 function loadDashboard() {

@@ -181,33 +181,25 @@
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 mb-1">Sampai Tanggal</label>
                                 <div class="flex gap-2">
-                                    <input type="date" id="filter-tgl-akhir" class="w-full border border-slate-300 text-sm rounded-lg px-3 py-1.5 focus:ring-blue-500">
-                                    <button onclick="applyFilters()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-900"><i class="ph ph-funnel"></i></button>
-                                </div>
+                    <!-- Filter Section -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                        <div class="p-4 flex flex-wrap gap-4 bg-slate-50">
+                            <div class="flex-1 min-w-[200px]">
+                                <input type="text" id="filter-search" placeholder="Cari uraian/keterangan..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="w-full md:w-48">
+                                <select id="filter-ruang" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                            <div class="w-full md:w-auto flex gap-2">
+                                <input type="date" id="filter-tgl-awal" class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <span class="self-center text-slate-500">s/d</span>
+                                <input type="date" id="filter-tgl-akhir" class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
-
-                        <!-- Table -->
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left text-sm text-slate-600">
-                                <thead class="table-header sticky top-0 z-10 shadow-sm">
-                                    <tr>
-                                        <th class="px-4 py-3">Tanggal</th>
-                                        <th class="px-4 py-3 min-w-[200px]">Uraian</th>
-                                        <th class="px-4 py-3 min-w-[150px]">Keterangan</th>
-                                        <th class="px-4 py-3">Bangunan/Ruang</th>
-                                        <th class="px-4 py-3">Pos Belanja</th>
-                                        <th class="px-4 py-3 text-right text-emerald-700">Pemasukan (Debet)</th>
-                                        <th class="px-4 py-3 text-right text-red-600">Pengeluaran (Kredit)</th>
-                                        <th class="px-4 py-3 text-right text-blue-700">Saldo Akhir</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-buku-kas" class="divide-y divide-slate-100 bg-white">
-                                    <!-- Rows rendered via JS -->
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
+
+                    <!-- Dynamic Tables Container -->
+                    <div id="buku-kas-container"></div>
                 </div>
 
                 <!-- PAGE: Master Data -->
