@@ -196,7 +196,7 @@ function populateDropdowns() {
     
     const renderModalOpts = (arr) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
     document.getElementById('input-bangunan').innerHTML = renderModalOpts(masterData.bangunan);
-    document.getElementById('input-ruang').innerHTML = renderModalOpts(masterData.ruang);
+    document.getElementById('input-ruang').innerHTML = '<option value="">-- Pilih Bangunan Dulu --</option>'; // Dinamis
     document.getElementById('input-pos').innerHTML = renderModalOpts(masterData.pos);
 }
 
@@ -331,6 +331,43 @@ function loadDashboard() {
                 <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${UI.formatRp(r.saldo)}</span>
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Kosong</p>';
+        
+        let htmlHierarki = '';
+        masterData.bangunan.forEach(b => {
+            const bInfo = bgnMap[b.id];
+            const saldoBgn = bInfo ? bInfo.total_saldo : 0;
+            const childRooms = masterData.ruang.filter(r => r.id_bangunan === b.id);
+            
+            htmlHierarki += `
+                <div class="mb-4 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-4 py-3 flex justify-between items-center border-b border-slate-200">
+                        <span class="font-bold text-slate-800">${b.nama}</span>
+                        <span class="font-bold text-blue-700">${UI.formatRp(saldoBgn)}</span>
+                    </div>
+                    <div class="divide-y divide-slate-100 bg-white">
+            `;
+            
+            if (childRooms.length > 0) {
+                childRooms.forEach(r => {
+                    const rInfo = rekapRuang[r.id];
+                    const saldoRng = rInfo ? rInfo.saldo_akhir : 0;
+                    htmlHierarki += `
+                        <div class="px-4 py-2.5 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="ph ph-arrow-elbow-down-right text-slate-300 ml-2 text-lg"></i>
+                                <span class="text-sm text-slate-600 font-medium">${r.nama}</span>
+                            </div>
+                            <span class="text-sm font-semibold text-slate-700">${UI.formatRp(saldoRng)}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                htmlHierarki += `<div class="px-4 py-3 text-sm text-slate-400 italic pl-10">Belum ada ruang kelas.</div>`;
+            }
+            htmlHierarki += `</div></div>`;
+        });
+        
+        document.getElementById('dash-hierarki-list').innerHTML = htmlHierarki || '<p class="text-sm text-slate-400">Belum ada data bangunan.</p>';
     }
 }
 
@@ -458,6 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id)?.addEventListener('input', applyFilters);
     });
     
+    // Dynamic Dropdown Bangunan -> Ruang (Form Transaksi)
+    document.getElementById('input-bangunan')?.addEventListener('change', function(e) {
+        const bId = e.target.value;
+        const filteredRuang = bId ? masterData.ruang.filter(r => r.id_bangunan === bId) : [];
+        const renderModalOpts = (arr) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
+        document.getElementById('input-ruang').innerHTML = bId ? renderModalOpts(filteredRuang) : '<option value="">-- Pilih Bangunan Dulu --</option>';
+    });
+
     // Auto-refresh Dashboard button support (since it no longer fetches from API)
     document.querySelector('button[onclick="loadDashboard()"]')?.addEventListener('click', (e) => {
         e.preventDefault();
