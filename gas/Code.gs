@@ -23,7 +23,7 @@ function doPost(e) {
       case "delete_master": result = handleDeleteMaster(payload); break;
       case "submit_transaksi": result = handleSubmitTransaksi(payload); break;
       case "get_buku_kas": result = handleGetBukuKas(payload); break;
-      case "get_dashboard": result = handleGetDashboard(); break;
+      case "sync_all": result = handleSyncAll(); break;
       case "export_laporan": result = handleExportLaporan(payload); break;
     }
 
@@ -205,48 +205,10 @@ function handleGetBukuKas(payload) {
   return { status: "success", data: result };
 }
 
-function handleGetDashboard() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Buku_Kas");
-  
-  let totalDebet = 0, totalKredit = 0;
-  let rekapRuang = {}; 
-
-  if (sheet) {
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      const dbt = parseFloat(data[i][4]) || 0;
-      const krd = parseFloat(data[i][5]) || 0;
-      const rId = data[i][10];
-      const bId = data[i][9];
-      const sAk = parseFloat(data[i][7]) || 0;
-
-      totalDebet += dbt;
-      totalKredit += krd;
-
-      if (!rekapRuang[rId]) rekapRuang[rId] = { bId: bId, debet: 0, kredit: 0, saldo_akhir: 0 };
-      rekapRuang[rId].debet += dbt;
-      rekapRuang[rId].kredit += krd;
-      rekapRuang[rId].saldo_akhir = sAk; 
-    }
-  }
-
-  const mstData = handleGetMaster().data;
-  const bgnMap = {}; mstData.bangunan.forEach(b => bgnMap[b.id] = { nama: b.nama, total_saldo: 0, total_pengeluaran: 0 });
-  const rngMap = {}; mstData.ruang.forEach(r => rngMap[r.id] = r.nama);
-
-  for (let rId in rekapRuang) {
-    const bId = rekapRuang[rId].bId;
-    if (bgnMap[bId]) {
-      bgnMap[bId].total_saldo += rekapRuang[rId].saldo_akhir;
-      bgnMap[bId].total_pengeluaran += rekapRuang[rId].kredit;
-    }
-  }
-
-  const ringkasanRuang = Object.keys(rekapRuang).map(rId => ({ nama: rngMap[rId] || rId, saldo: rekapRuang[rId].saldo_akhir }));
-  const ringkasanBangunan = Object.keys(bgnMap).map(bId => ({ nama: bgnMap[bId].nama, pengeluaran: bgnMap[bId].total_pengeluaran, saldo: bgnMap[bId].total_saldo }));
-
-  return { status: "success", data: { totalPemasukan: totalDebet, totalPengeluaran: totalKredit, totalSaldo: totalDebet - totalKredit, ringkasanBangunan: ringkasanBangunan, ringkasanRuang: ringkasanRuang } };
+function handleSyncAll() {
+  const master = handleGetMaster().data;
+  const buku_kas = handleGetBukuKas({}).data;
+  return { status: "success", data: { master, buku_kas } };
 }
 
 function handleExportLaporan(payload) {

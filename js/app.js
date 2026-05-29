@@ -1,10 +1,10 @@
 /**
- * Main Application Logic - Phase 3
+ * Main Application Logic - Phase 4 (IndexedDB + Seamless UI)
  */
 
 let currentUser = null;
 let masterData = { bangunan: [], ruang: [], pos: [] };
-let currentBukuKasData = []; // Raw data cache
+let currentBukuKasData = []; // Cache lokal dari IndexedDB
 
 const UI = {
     showLoader(text = 'Memproses Data...') { 
@@ -41,16 +41,21 @@ const UI = {
             sidebar.classList.add('-translate-x-full');
             backdrop.classList.add('hidden');
         }
-        
-        if (pageId === 'dashboard') loadDashboard();
-        if (pageId === 'buku-kas') loadBukuKas();
-        if (pageId === 'master-data') renderMasterData();
     },
     formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0); },
     formatRpInput(val) {
         let n = val.replace(/[^,\d]/g, '').toString(), s = n.split(','), m = s[0].length % 3, r = s[0].substr(0, m), t = s[0].substr(m).match(/\d{3}/gi);
         if (t) r += (m ? '.' : '') + t.join('.');
         return r ? 'Rp' + r : '';
+    },
+    formatDateID(dateString) {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        if(isNaN(d.getTime())) return dateString;
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
     },
     toggleJenisTrx() {
         const jenis = document.getElementById('input-jenis').value;
@@ -63,52 +68,93 @@ const UI = {
         if (!name) return;
         let payload = { type, nama: name, username: currentUser.username };
         if (type === 'ruang') {
-            const bId = prompt('Masukkan ID Bangunan:'); // Simplified MVP
+            const bId = prompt('Masukkan ID Bangunan:');
             if (!bId) return; payload.id_bangunan = bId;
         }
-        UI.showLoader();
         try {
             const res = await API.post('add_master', payload);
-            if (res.status === 'success') { UI.toast(res.message, 'success'); await fetchMasterData(); renderMasterData(); }
+            if (res.status === 'success') { UI.toast(res.message, 'success'); syncAllData(true); }
             else throw new Error(res.message);
         } catch(e) { UI.toast(e.message, 'error'); }
-        UI.hideLoader();
     },
     async promptEditMaster(type, id, oldName) {
         const name = prompt(`Ubah nama ${type}:`, oldName);
         if (!name || name === oldName) return;
-        UI.showLoader();
         try {
             const res = await API.post('edit_master', { type, id, nama: name, username: currentUser.username });
-            if (res.status === 'success') { UI.toast(res.message, 'success'); await fetchMasterData(); renderMasterData(); }
+            if (res.status === 'success') { UI.toast(res.message, 'success'); syncAllData(true); }
             else throw new Error(res.message);
         } catch(e) { UI.toast(e.message, 'error'); }
-        UI.hideLoader();
     },
     async deleteMaster(type, id) {
         if (!confirm('Yakin ingin menghapus data ini?')) return;
-        UI.showLoader();
         try {
             const res = await API.post('delete_master', { type, id, username: currentUser.username });
-            if (res.status === 'success') { UI.toast(res.message, 'success'); await fetchMasterData(); renderMasterData(); }
+            if (res.status === 'success') { UI.toast(res.message, 'success'); syncAllData(true); }
             else throw new Error(res.message);
         } catch(e) { UI.toast(e.message, 'error'); }
-        UI.hideLoader();
+    },
+    logout() {
+        currentUser = null;
+        localforage.clear();
+        document.getElementById('login-form').reset();
+        UI.switchView('view-login');
     }
 };
 
-// --- API Calls ---
+// --- Core Data Sync (IndexedDB) ---
+async function syncAllData(isBackground = false) {
+    if (isBackground) {
+        document.getElementById('sync-indicator').classList.remove('hidden');
+        document.getElementById('sync-indicator').classList.add('flex');
+    }
+    
+    try {
+        const res = await API.post('sync_all');
+        if (res.status === 'success') {
+            masterData = res.data.master;
+            currentBukuKasData = res.data.buku_kas;
+            
+            // Simpan ke IndexedDB
+            await localforage.setItem('masterData', masterData);
+            await localforage.setItem('bukuKasData', currentBukuKasData);
+            
+            // Re-render UI secara sinkron (Seamless)
+            populateDropdowns();
+            applyFilters();
+            loadDashboard();
+            renderMasterData();
+        } else {
+            throw new Error(res.message);
+        }
+    } catch(e) {
+        console.error("Sync Error:", e);
+        if (!isBackground) throw e; 
+    } finally {
+        if (isBackground) {
+            document.getElementById('sync-indicator').classList.add('hidden');
+            document.getElementById('sync-indicator').classList.remove('flex');
+        }
+    }
+}
+
+// --- API Calls & Handlers ---
 async function handleLogin(e) {
     e.preventDefault();
-    UI.showLoader();
+    UI.showLoader('Mengesahkan pengguna...');
     try {
         const res = await API.post('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value });
         if (res.status === 'success') {
             currentUser = res.data;
+            await localforage.setItem('currentUser', currentUser);
+            
             document.getElementById('user-fullname').textContent = currentUser.nama;
-            document.getElementById('user-role-badge').textContent = currentUser.role.toUpperCase();
             document.getElementById('menu-admin').style.display = (currentUser.role === 'kepsek' || currentUser.role === 'admin') ? 'block' : 'none';
-            await fetchMasterData();
+            
+            // Ambil semua data pada saat pertama kali login
+            UI.showLoader('Mengunduh data awal...');
+            await syncAllData(false);
+            
             UI.switchView('view-app');
             UI.switchPage('dashboard');
         } else throw new Error(res.message);
@@ -116,11 +162,31 @@ async function handleLogin(e) {
     UI.hideLoader();
 }
 
-async function fetchMasterData() {
-    try {
-        const res = await API.post('get_master');
-        if (res.status === 'success') { masterData = res.data; populateDropdowns(); }
-    } catch(e) { console.error(e); }
+async function checkSession() {
+    const user = await localforage.getItem('currentUser');
+    if (user) {
+        currentUser = user;
+        document.getElementById('user-fullname').textContent = currentUser.nama;
+        document.getElementById('menu-admin').style.display = (currentUser.role === 'kepsek' || currentUser.role === 'admin') ? 'block' : 'none';
+        
+        // Coba muat dari cache lokal dulu agar instan
+        const cachedMaster = await localforage.getItem('masterData');
+        const cachedBukuKas = await localforage.getItem('bukuKasData');
+        if (cachedMaster && cachedBukuKas) {
+            masterData = cachedMaster;
+            currentBukuKasData = cachedBukuKas;
+            populateDropdowns();
+            applyFilters();
+            loadDashboard();
+            renderMasterData();
+            
+            UI.switchView('view-app');
+            UI.switchPage('dashboard');
+            
+            // Sync di latar belakang
+            syncAllData(true);
+        }
+    }
 }
 
 function populateDropdowns() {
@@ -150,37 +216,27 @@ async function submitTransaksi() {
     if (!p.tanggal || !p.uraian || !raw || !p.id_bangunan || !p.id_ruang) return UI.toast('Lengkapi form.', 'error');
     if (document.getElementById('input-jenis').value === 'kredit' && !p.pos_belanja) return UI.toast('Harap pilih Pos Belanja untuk Pengeluaran (Kredit).', 'error');
 
-    UI.showLoader();
+    document.getElementById('modal-transaksi').classList.add('hidden');
+    document.getElementById('form-transaksi').reset();
+    document.getElementById('input-nominal').value = '';
+    
+    UI.toast('Menyimpan transaksi...', 'info');
+    
+    // Background POST
     try {
         const res = await API.post('submit_transaksi', p);
         if (res.status === 'success') {
-            UI.toast(res.message, 'success');
-            document.getElementById('modal-transaksi').classList.add('hidden');
-            document.getElementById('form-transaksi').reset();
-            document.getElementById('input-nominal').value = '';
-            loadBukuKas();
+            UI.toast('Transaksi berhasil disimpan.', 'success');
+            syncAllData(true); // Re-fetch all to ensure integrity
         } else throw new Error(res.message);
-    } catch(e) { UI.toast(e.message, 'error'); }
-    UI.hideLoader();
-}
-
-async function loadBukuKas() {
-    UI.showLoader();
-    try {
-        const res = await API.post('get_buku_kas', {});
-        if (res.status === 'success') {
-            currentBukuKasData = res.data;
-            applyFilters();
-        }
-    } catch(e) { UI.toast(e.message, 'error'); }
-    UI.hideLoader();
+    } catch(e) { UI.toast('Gagal: ' + e.message, 'error'); }
 }
 
 function applyFilters() {
-    const search = document.getElementById('filter-search').value.toLowerCase();
-    const ruang = document.getElementById('filter-ruang').value;
-    const tglAwal = document.getElementById('filter-tgl-awal').value;
-    const tglAkhir = document.getElementById('filter-tgl-akhir').value;
+    const search = document.getElementById('filter-search')?.value.toLowerCase();
+    const ruang = document.getElementById('filter-ruang')?.value;
+    const tglAwal = document.getElementById('filter-tgl-awal')?.value;
+    const tglAkhir = document.getElementById('filter-tgl-akhir')?.value;
 
     let filtered = currentBukuKasData.filter(item => {
         let pass = true;
@@ -198,12 +254,14 @@ function applyFilters() {
     });
 
     const tbody = document.getElementById('table-buku-kas');
+    if(!tbody) return;
+    
     tbody.innerHTML = '';
     if (filtered.length > 0) {
         filtered.forEach(item => {
             tbody.innerHTML += `
                 <tr class="hover:bg-slate-50 border-b border-slate-50">
-                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${item.tanggal}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${UI.formatDateID(item.tanggal)}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">${item.uraian}</td>
                     <td class="px-4 py-3 text-xs text-slate-500">${item.keterangan || '-'}</td>
                     <td class="px-4 py-3 text-xs text-slate-600">${item.bangunan} / ${item.ruang}</td>
@@ -214,36 +272,66 @@ function applyFilters() {
                 </tr>
             `;
         });
-    } else tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Data tidak ditemukan.</td></tr>';
+    } else tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Data tidak ditemukan.</td></tr>';
 }
 
-async function loadDashboard() {
-    UI.showLoader();
-    try {
-        const res = await API.post('get_dashboard');
-        if (res.status === 'success') {
-            document.getElementById('dash-pemasukan').textContent = UI.formatRp(res.data.totalPemasukan);
-            document.getElementById('dash-pengeluaran').textContent = UI.formatRp(res.data.totalPengeluaran);
-            document.getElementById('dash-saldo').textContent = UI.formatRp(res.data.totalSaldo);
+function loadDashboard() {
+    let totalDebet = 0, totalKredit = 0;
+    let rekapRuang = {}; 
+    
+    currentBukuKasData.forEach(item => {
+        const dbt = parseFloat(item.debet) || 0;
+        const krd = parseFloat(item.kredit) || 0;
+        const sAk = parseFloat(item.saldo_akhir) || 0;
+        const rId = item.id_ruang;
+        const bId = item.id_bangunan;
+        
+        totalDebet += dbt;
+        totalKredit += krd;
+        
+        if (!rekapRuang[rId]) rekapRuang[rId] = { bId: bId, debet: 0, kredit: 0, saldo_akhir: 0 };
+        rekapRuang[rId].debet += dbt;
+        rekapRuang[rId].kredit += krd;
+        rekapRuang[rId].saldo_akhir = sAk; 
+    });
 
-            document.getElementById('dash-bangunan-list').innerHTML = res.data.ringkasanBangunan.map(b => `
-                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span class="font-medium text-slate-700">${b.nama}</span>
-                    <div class="text-right">
-                        <div class="text-sm font-bold text-slate-800">${UI.formatRp(b.saldo)}</div>
-                        <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
-                    </div>
-                </div>
-            `).join('') || '<p class="text-sm text-slate-400">Belum ada data.</p>';
+    const bgnMap = {}; 
+    masterData.bangunan.forEach(b => bgnMap[b.id] = { nama: b.nama, total_saldo: 0, total_pengeluaran: 0 });
+    const rngMap = {}; 
+    masterData.ruang.forEach(r => rngMap[r.id] = r.nama);
 
-            document.getElementById('dash-ruang-list').innerHTML = res.data.ringkasanRuang.map(r => `
-                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${UI.formatRp(r.saldo)}</span>
-                </div>
-            `).join('') || '<p class="text-sm">Kosong</p>';
+    for (let rId in rekapRuang) {
+        const bId = rekapRuang[rId].bId;
+        if (bgnMap[bId]) {
+            bgnMap[bId].total_saldo += rekapRuang[rId].saldo_akhir;
+            bgnMap[bId].total_pengeluaran += rekapRuang[rId].kredit;
         }
-    } catch(e) { UI.toast(e.message, 'error'); }
-    UI.hideLoader();
+    }
+
+    const ringkasanRuang = Object.keys(rekapRuang).map(rId => ({ nama: rngMap[rId] || rId, saldo: rekapRuang[rId].saldo_akhir }));
+    const ringkasanBangunan = Object.keys(bgnMap).map(bId => ({ nama: bgnMap[bId].nama, pengeluaran: bgnMap[bId].total_pengeluaran, saldo: bgnMap[bId].total_saldo }));
+
+    if(document.getElementById('dash-pemasukan')){
+        document.getElementById('dash-pemasukan').textContent = UI.formatRp(totalDebet);
+        document.getElementById('dash-pengeluaran').textContent = UI.formatRp(totalKredit);
+        document.getElementById('dash-saldo').textContent = UI.formatRp(totalDebet - totalKredit);
+        
+        document.getElementById('dash-bangunan-list').innerHTML = ringkasanBangunan.map(b => `
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <span class="font-medium text-slate-700">${b.nama}</span>
+                <div class="text-right">
+                    <div class="text-sm font-bold text-slate-800">${UI.formatRp(b.saldo)}</div>
+                    <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
+                </div>
+            </div>
+        `).join('') || '<p class="text-sm text-slate-400">Belum ada data.</p>';
+        
+        document.getElementById('dash-ruang-list').innerHTML = ringkasanRuang.map(r => `
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${UI.formatRp(r.saldo)}</span>
+            </div>
+        `).join('') || '<p class="text-sm text-slate-400">Kosong</p>';
+    }
 }
 
 function renderMasterData() {
@@ -256,9 +344,11 @@ function renderMasterData() {
             </div>
         </li>
     `;
-    document.getElementById('list-master-pos').innerHTML = masterData.pos.map(x => renderLi(x, 'pos')).join('');
-    document.getElementById('list-master-bangunan').innerHTML = masterData.bangunan.map(x => renderLi(x, 'bangunan')).join('');
-    document.getElementById('list-master-ruang').innerHTML = masterData.ruang.map(x => renderLi(x, 'ruang')).join('');
+    if(document.getElementById('list-master-pos')){
+        document.getElementById('list-master-pos').innerHTML = masterData.pos.map(x => renderLi(x, 'pos')).join('');
+        document.getElementById('list-master-bangunan').innerHTML = masterData.bangunan.map(x => renderLi(x, 'bangunan')).join('');
+        document.getElementById('list-master-ruang').innerHTML = masterData.ruang.map(x => renderLi(x, 'ruang')).join('');
+    }
 }
 
 async function handleExport(format) {
@@ -272,57 +362,40 @@ async function handleExport(format) {
 
         const headers = [["No", "Tanggal", "Uraian", "Keterangan", "Pos Belanja", "Debet (Rp)", "Kredit (Rp)", "Saldo Akhir (Rp)"]];
         const rows = filtered.map((item, index) => [
-            index + 1, item.tanggal, item.uraian, item.keterangan || '-', item.pos || '-', item.debet || 0, item.kredit || 0, item.saldo_akhir || 0
+            index + 1, UI.formatDateID(item.tanggal), item.uraian, item.keterangan || '-', item.pos || '-', item.debet || 0, item.kredit || 0, item.saldo_akhir || 0
         ]);
 
         if (format === 'xlsx') {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Buku Kas');
 
-            // Header Teks
             worksheet.getCell('A1').value = 'LAPORAN BUKU KAS REVITALISASI';
             worksheet.getCell('A1').font = { bold: true, size: 14 };
             worksheet.getCell('A2').value = 'SDN PERCONTOHAN';
             worksheet.getCell('A2').font = { bold: true };
             worksheet.getCell('A3').value = `Ruang Kelas: ${namaRuang}`;
-
-            // Tambahkan baris kosong
             worksheet.addRow([]);
 
-            // Baris Judul Tabel (Header)
             const headerRow = worksheet.addRow(headers[0]);
             headerRow.eachCell((cell) => {
                 cell.font = { bold: true };
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }; // Light blue background
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
 
-            // Isi Data
             rows.forEach((r) => {
                 const row = worksheet.addRow(r);
                 row.eachCell((cell, colNumber) => {
                     cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                    // Format mata uang untuk Debet, Kredit, Saldo Akhir (Kolom 6, 7, 8)
-                    if (colNumber >= 6 && colNumber <= 8) {
-                        cell.numFmt = '"Rp"#,##0';
-                    }
+                    if (colNumber >= 6 && colNumber <= 8) cell.numFmt = '"Rp"#,##0';
                 });
             });
 
-            // Lebar Kolom
             worksheet.columns = [
-                { width: 6 },  // No
-                { width: 14 }, // Tanggal
-                { width: 40 }, // Uraian
-                { width: 35 }, // Keterangan
-                { width: 20 }, // Pos Belanja
-                { width: 18 }, // Debet
-                { width: 18 }, // Kredit
-                { width: 18 }  // Saldo Akhir
+                { width: 6 }, { width: 14 }, { width: 40 }, { width: 35 }, { width: 20 }, { width: 18 }, { width: 18 }, { width: 18 }
             ];
 
-            // Download File
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const link = document.createElement('a');
@@ -332,7 +405,7 @@ async function handleExport(format) {
         } 
         else if (format === 'pdf') {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'pt', 'a4'); // Landscape agar lebih lega
+            const doc = new jsPDF('l', 'pt', 'a4'); 
             
             doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
@@ -352,7 +425,7 @@ async function handleExport(format) {
                 body: bodyStr,
                 theme: 'grid',
                 styles: { fontSize: 9 },
-                headStyles: { fillColor: [30, 58, 138] }, // bg-blue-900
+                headStyles: { fillColor: [30, 58, 138] },
                 columnStyles: {
                     0: { halign: 'center', cellWidth: 30 },
                     5: { halign: 'right' },
@@ -372,9 +445,11 @@ async function handleExport(format) {
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Jalankan pengecekan sesi saat halaman dimuat
+    checkSession();
+    
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.querySelectorAll('.nav-link').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); UI.switchPage(e.currentTarget.dataset.page); }); });
-    document.getElementById('btn-logout').addEventListener('click', () => { currentUser = null; document.getElementById('login-form').reset(); UI.switchView('view-login'); });
     const nmInput = document.getElementById('input-nominal');
     if(nmInput) nmInput.addEventListener('keyup', function() { this.value = UI.formatRpInput(this.value); });
     const dtInput = document.getElementById('input-tanggal');
@@ -383,7 +458,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id)?.addEventListener('input', applyFilters);
     });
     
-    // Mobile Menu Toggle
+    // Auto-refresh Dashboard button support (since it no longer fetches from API)
+    document.querySelector('button[onclick="loadDashboard()"]')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        syncAllData(true);
+        UI.toast('Memperbarui data dari server...', 'info');
+    });
+
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const sidebar = document.getElementById('nav-sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');

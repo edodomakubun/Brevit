@@ -15,10 +15,16 @@
     <!-- jsPDF & AutoTable (PDF) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- LocalForage (IndexedDB Wrapper) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased font-sans">
     
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <div id="sync-indicator" class="fixed bottom-4 right-4 z-50 hidden flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg text-sm font-medium transition-all duration-300 transform translate-y-0">
+        <i class="ph ph-arrows-clockwise animate-spin text-lg text-blue-400"></i> <span id="sync-text">Menyinkronkan...</span>
+    </div>
 
     <div id="global-loader" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
         <div class="animate-spin text-white text-4xl mb-4"><i class="ph ph-spinner-gap"></i></div>
@@ -84,7 +90,7 @@
                     <span id="user-fullname" class="text-sm font-semibold text-white">Nama</span>
                     <span id="user-role-badge" class="text-xs text-blue-400">Role</span>
                 </div>
-                <button id="btn-logout" class="text-red-400 hover:text-red-300"><i class="ph ph-power text-xl"></i></button>
+                <button onclick="UI.logout()" class="text-red-400 hover:text-red-300"><i class="ph ph-power text-xl"></i></button>
             </div>
         </aside>
 
