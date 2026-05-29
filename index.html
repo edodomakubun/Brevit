@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Kas Revitalisasi - Sekolah</title>
+    <!-- Tailwind CSS v4 -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased font-sans">
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Spinner Overlay -->
+    <div id="global-loader" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+        <div class="animate-spin text-white text-4xl mb-4">
+            <i class="ph ph-spinner-gap"></i>
+        </div>
+        <p class="text-white font-medium">Memproses Data...</p>
+    </div>
+
+    <!-- VIEW: LOGIN -->
+    <div id="view-login" class="min-h-screen flex flex-col items-center justify-center bg-blue-900 p-4">
+        <div class="w-full max-w-md">
+            <div class="bg-white p-8 rounded-xl shadow-2xl relative overflow-hidden">
+                <div class="text-center mb-8">
+                    <div class="bg-blue-50 text-blue-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
+                        <i class="ph ph-buildings text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-800">Sistem Buku Kas</h1>
+                    <p class="text-slate-500 mt-1 text-sm">Revitalisasi & Rehabilitasi Sekolah</p>
+                </div>
+
+                <form id="login-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="ph ph-user"></i>
+                            </div>
+                            <input type="text" id="login-username" required class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="ph ph-lock-key"></i>
+                            </div>
+                            <input type="password" id="login-password" required class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4 shadow-md">
+                        <span>Masuk</span>
+                        <i class="ph ph-sign-in"></i>
+                    </button>
+                </form>
+            </div>
+            <p class="text-center text-blue-200 text-xs mt-6">© 2026 Pemerintah / Sekolah Terkait.</p>
+        </div>
+    </div>
+
+    <!-- VIEW: APP LAYOUT -->
+    <div id="view-app" class="hidden min-h-screen flex flex-col md:flex-row">
+        
+        <!-- Sidebar Backdrop for Mobile -->
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+        <!-- Sidebar (Dark Blue Government Style) -->
+        <aside id="nav-sidebar" class="fixed md:relative inset-y-0 left-0 w-64 bg-blue-900 text-slate-200 flex flex-col z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex-shrink-0">
+            <div class="p-5 flex items-center gap-3 bg-blue-950">
+                <i class="ph ph-buildings text-3xl text-blue-400"></i>
+                <div>
+                    <h2 class="font-bold text-white leading-tight">Buku Kas</h2>
+                    <p class="text-[10px] text-blue-300 uppercase tracking-widest">Revitalisasi</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto py-4 space-y-1">
+                <a href="#" data-page="dashboard" class="nav-link active flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
+                    <i class="ph ph-squares-four text-xl"></i>
+                    <span class="font-medium text-sm">Dashboard</span>
+                </a>
+                
+                <a href="#" data-page="buku-kas" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
+                    <i class="ph ph-book-bookmark text-xl"></i>
+                    <span class="font-medium text-sm">Buku Kas (Transaksi)</span>
+                </a>
+                
+                <!-- Admin Only Menu -->
+                <div id="menu-admin" class="hidden mt-4">
+                    <p class="px-5 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 mt-4">Manajemen</p>
+                    <a href="#" data-page="master-data" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
+                        <i class="ph ph-database text-xl"></i>
+                        <span class="font-medium text-sm">Data Master</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="p-4 bg-blue-950 flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span id="user-fullname" class="text-sm font-semibold text-white">Nama User</span>
+                    <span id="user-role-badge" class="text-xs text-blue-400">Role</span>
+                </div>
+                <button id="btn-logout" class="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-white/10 transition-colors" title="Keluar">
+                    <i class="ph ph-power text-xl"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100">
+            
+            <!-- Mobile Header -->
+            <header class="md:hidden bg-blue-900 text-white p-4 flex justify-between items-center shadow-md z-10">
+                <div class="font-bold">Buku Kas Revitalisasi</div>
+                <button id="mobile-menu-btn"><i class="ph ph-list text-2xl"></i></button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                
+                <!-- PAGE: Dashboard -->
+                <div id="page-dashboard" class="page-content animate-fade-in">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">Dashboard</h2>
+                            <p class="text-slate-500 text-sm">Ringkasan finansial proyek revitalisasi sekolah.</p>
+                        </div>
+                        <button onclick="loadDashboard()" class="bg-white border border-slate-300 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm">
+                            <i class="ph ph-arrows-clockwise"></i> Refresh
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-600">
+                            <p class="text-sm font-medium text-slate-500 mb-1">Total Pemasukan (Debet)</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-pemasukan">Rp0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                            <p class="text-sm font-medium text-slate-500 mb-1">Total Pengeluaran (Kredit)</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-pengeluaran">Rp0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                            <p class="text-sm font-medium text-slate-500 mb-1">Total Saldo Tersisa</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-saldo">Rp0</h3>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-slate-100 bg-slate-50">
+                                <h3 class="font-semibold text-slate-700">Ringkasan Per Bangunan</h3>
+                            </div>
+                            <div class="p-5 space-y-4" id="dash-bangunan-list">
+                                <p class="text-slate-400 text-sm">Memuat data...</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-slate-100 bg-slate-50">
+                                <h3 class="font-semibold text-slate-700">Saldo Per Ruang</h3>
+                            </div>
+                            <div class="p-5 space-y-4" id="dash-ruang-list">
+                                <p class="text-slate-400 text-sm">Memuat data...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE: Buku Kas -->
+                <div id="page-buku-kas" class="page-content hidden animate-fade-in flex flex-col h-full">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">Buku Kas Transaksi</h2>
+                            <p class="text-slate-500 text-sm">Catat penerimaan dan pengeluaran dana.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('modal-transaksi').classList.remove('hidden')" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+                                <i class="ph ph-plus-circle text-lg"></i> Tambah Transaksi
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                        <!-- Toolbar / Filters -->
+                        <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex gap-3 items-center">
+                                <select id="filter-ruang" class="bg-white border border-slate-300 text-sm rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">-- Semua Ruang --</option>
+                                </select>
+                                <button onclick="loadBukuKas()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors">Filter</button>
+                            </div>
+                            <div>
+                                <button onclick="UI.toast('Fitur Export dalam pengembangan. Silakan download langsung dari Google Spreadsheet.', 'info')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+                                    <i class="ph ph-microsoft-excel-logo text-lg"></i> Export Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left text-sm text-slate-600">
+                                <thead class="table-header sticky top-0 bg-slate-50 z-10 shadow-sm">
+                                    <tr>
+                                        <th class="px-4 py-3 whitespace-nowrap">Tanggal</th>
+                                        <th class="px-4 py-3 min-w-[200px]">Uraian</th>
+                                        <th class="px-4 py-3 whitespace-nowrap">Bangunan/Ruang</th>
+                                        <th class="px-4 py-3 whitespace-nowrap">Pos Belanja</th>
+                                        <th class="px-4 py-3 text-right whitespace-nowrap text-emerald-700">Pemasukan (Debet)</th>
+                                        <th class="px-4 py-3 text-right whitespace-nowrap text-red-600">Pengeluaran (Kredit)</th>
+                                        <th class="px-4 py-3 text-right whitespace-nowrap text-blue-700">Saldo Akhir</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-buku-kas" class="divide-y divide-slate-100 bg-white">
+                                    <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Pilih ruang dan klik Filter untuk memuat data.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGE: Master Data -->
+                <div id="page-master-data" class="page-content hidden animate-fade-in">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800">Master Data</h2>
+                        <p class="text-slate-500 text-sm">Kelola daftar bangunan, ruang, dan pos belanja.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Pos Belanja -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                <h3 class="font-semibold text-slate-700">Daftar Pos Belanja</h3>
+                                <button onclick="UI.promptAddMaster('pos')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-sm font-medium">+ Tambah</button>
+                            </div>
+                            <ul id="list-master-pos" class="divide-y divide-slate-100 p-2"></ul>
+                        </div>
+
+                        <!-- Bangunan & Ruang -->
+                        <div class="space-y-8">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                                <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                    <h3 class="font-semibold text-slate-700">Daftar Bangunan</h3>
+                                    <button onclick="UI.promptAddMaster('bangunan')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-sm font-medium">+ Tambah</button>
+                                </div>
+                                <ul id="list-master-bangunan" class="divide-y divide-slate-100 p-2"></ul>
+                            </div>
+
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                                <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                    <h3 class="font-semibold text-slate-700">Daftar Ruang Kelas</h3>
+                                    <button onclick="UI.promptAddMaster('ruang')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-sm font-medium">+ Tambah</button>
+                                </div>
+                                <ul id="list-master-ruang" class="divide-y divide-slate-100 p-2"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: Tambah Transaksi -->
+    <div id="modal-transaksi" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg">Input Transaksi Buku Kas</h3>
+                <button onclick="document.getElementById('modal-transaksi').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1">
+                <form id="form-transaksi" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Tanggal Transaksi <span class="text-red-500">*</span></label>
+                            <input type="date" id="input-tanggal" required class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Jenis Transaksi <span class="text-red-500">*</span></label>
+                            <select id="input-jenis" required class="w-full px-3 py-2 border border-slate-300 rounded-lg" onchange="UI.toggleJenisTrx()">
+                                <option value="kredit">Pengeluaran (Kredit)</option>
+                                <option value="debet">Pemasukan (Debet)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Uraian / Deskripsi <span class="text-red-500">*</span></label>
+                            <input type="text" id="input-uraian" required placeholder="Contoh: Pembelian Semen 10 Sak" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Bangunan <span class="text-red-500">*</span></label>
+                            <select id="input-bangunan" required class="w-full px-3 py-2 border border-slate-300 rounded-lg"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Ruang <span class="text-red-500">*</span></label>
+                            <select id="input-ruang" required class="w-full px-3 py-2 border border-slate-300 rounded-lg"></select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Pos Belanja <span class="text-red-500">*</span></label>
+                            <select id="input-pos" required class="w-full px-3 py-2 border border-slate-300 rounded-lg"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Nominal (Rp) <span class="text-red-500">*</span></label>
+                            <input type="text" id="input-nominal" required placeholder="Rp0" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold text-blue-700">
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Keterangan Tambahan</label>
+                            <input type="text" id="input-keterangan" placeholder="Opsional" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-transaksi').classList.add('hidden')" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50">Batal</button>
+                <button type="button" onclick="submitTransaksi()" class="px-6 py-2 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800 flex items-center gap-2 shadow-sm">
+                    <i class="ph ph-floppy-disk"></i> Simpan Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
