@@ -441,7 +441,7 @@ function loadDashboard() {
                 <span class="font-medium text-slate-700">${b.nama}</span>
                 <div class="text-right">
                     <div class="text-sm font-bold text-slate-800">${hideSaldoBgn ? 'Rp ***' : UI.formatRp(b.saldo)}</div>
-                    <div class="text-[10px] text-red-500">Kredit: ${hideSaldoBgn ? 'Rp ***' : UI.formatRp(b.pengeluaran)}</div>
+                    <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
                 </div>
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Belum ada data.</p>';
