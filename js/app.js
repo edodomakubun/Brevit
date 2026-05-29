@@ -264,23 +264,71 @@ async function handleExport(format) {
     const ruang = document.getElementById('export-ruang').value;
     document.getElementById('modal-export').classList.add('hidden');
     UI.showLoader(`Menyiapkan file ${format.toUpperCase()}...`);
+    
     try {
-        const res = await API.post('export_laporan', { id_ruang: ruang, format: format, username: currentUser.username });
-        if (res.status === 'success') {
-            const { fileData, mimeType, filename } = res.data;
-            const byteCharacters = atob(fileData);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: mimeType });
+        const filtered = ruang === 'all' ? currentBukuKasData : currentBukuKasData.filter(d => d.id_ruang === ruang);
+        const namaRuang = ruang === 'all' ? 'Semua Ruang' : (filtered.length > 0 ? filtered[0].ruang : 'Tidak Diketahui');
+
+        const headers = [["No", "Tanggal", "Uraian", "Pos Belanja", "Debet (Rp)", "Kredit (Rp)", "Saldo Akhir (Rp)"]];
+        const rows = filtered.map((item, index) => [
+            index + 1, item.tanggal, item.uraian, item.pos || '-', item.debet, item.kredit, item.saldo_akhir
+        ]);
+
+        if (format === 'xlsx') {
+            const wsData = [
+                ["LAPORAN BUKU KAS REVITALISASI"],
+                ["SDN PERCONTOHAN"],
+                [`Ruang Kelas: ${namaRuang}`],
+                [],
+                ...headers,
+                ...rows
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
             
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-            UI.toast('Berhasil mengunduh laporan.', 'success');
-        } else throw new Error(res.message);
-    } catch(e) { UI.toast(e.message, 'error'); }
+            // Atur lebar kolom
+            ws['!cols'] = [{wch: 5}, {wch: 12}, {wch: 40}, {wch: 20}, {wch: 15}, {wch: 15}, {wch: 15}];
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Buku Kas");
+            XLSX.writeFile(wb, `Laporan_BukuKas_${namaRuang}.xlsx`);
+        } 
+        else if (format === 'pdf') {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'pt', 'a4'); // Landscape agar lebih lega
+            
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("LAPORAN BUKU KAS REVITALISASI", 40, 40);
+            
+            doc.setFontSize(12);
+            doc.text("SDN PERCONTOHAN", 40, 60);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Ruang Kelas: ${namaRuang}`, 40, 80);
+            
+            const formatRpPdf = (val) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(val);
+            const bodyStr = rows.map(r => [r[0], r[1], r[2], r[3], formatRpPdf(r[4]), formatRpPdf(r[5]), formatRpPdf(r[6])]);
+
+            doc.autoTable({
+                startY: 100,
+                head: headers,
+                body: bodyStr,
+                theme: 'grid',
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [30, 58, 138] }, // bg-blue-900
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 30 },
+                    4: { halign: 'right' },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' }
+                }
+            });
+            doc.save(`Laporan_BukuKas_${namaRuang}.pdf`);
+        }
+        UI.toast('Berhasil mengunduh laporan.', 'success');
+    } catch(e) { 
+        console.error(e);
+        UI.toast('Gagal mengekspor laporan: ' + e.message, 'error'); 
+    }
     UI.hideLoader();
 }
 
