@@ -5,7 +5,6 @@
 let currentUser = null;
 let masterData = { bangunan: [], ruang: [], pos: [] };
 let currentBukuKasData = []; // Raw data cache
-let dashboardChartInstance = null;
 
 const UI = {
     showLoader(text = 'Memproses Data...') { 
@@ -46,7 +45,6 @@ const UI = {
         if (pageId === 'dashboard') loadDashboard();
         if (pageId === 'buku-kas') loadBukuKas();
         if (pageId === 'master-data') renderMasterData();
-        if (pageId === 'pengaturan') loadLocks();
     },
     formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0); },
     formatRpInput(val) {
@@ -220,21 +218,6 @@ async function loadDashboard() {
             document.getElementById('dash-pengeluaran').textContent = UI.formatRp(res.data.totalPengeluaran);
             document.getElementById('dash-saldo').textContent = UI.formatRp(res.data.totalSaldo);
 
-            // Chart Rendering
-            const ctx = document.getElementById('dashboardChart').getContext('2d');
-            const labels = res.data.ringkasanBangunan.map(b => b.nama);
-            const pengeluaran = res.data.ringkasanBangunan.map(b => b.pengeluaran);
-            
-            if (dashboardChartInstance) dashboardChartInstance.destroy();
-            dashboardChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{ label: 'Pengeluaran (Kredit)', data: pengeluaran, backgroundColor: '#3b82f6', borderRadius: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-            });
-
             document.getElementById('dash-ruang-list').innerHTML = res.data.ringkasanRuang.map(r => `
                 <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${UI.formatRp(r.saldo)}</span>
@@ -280,28 +263,6 @@ async function handleExport(format) {
             link.click();
             UI.toast('Berhasil mengunduh laporan.', 'success');
         } else throw new Error(res.message);
-    } catch(e) { UI.toast(e.message, 'error'); }
-    UI.hideLoader();
-}
-
-async function loadLocks() {
-    try {
-        const res = await API.post('get_locks');
-        if (res.status === 'success') {
-            const ul = document.getElementById('list-locked-months');
-            ul.innerHTML = res.data.filter(l => l.locked).map(l => `<li class="p-2 text-sm text-red-600 font-medium"><i class="ph ph-lock-key mr-2"></i>${l.bulan}</li>`).join('') || '<li class="p-2 text-sm text-slate-400">Tidak ada bulan yang terkunci.</li>';
-        }
-    } catch(e) {}
-}
-
-async function toggleLockBulan(isLocked) {
-    const bln = document.getElementById('input-lock-bulan').value;
-    if (!bln) return UI.toast('Pilih bulan terlebih dahulu.', 'error');
-    UI.showLoader();
-    try {
-        const res = await API.post('toggle_lock', { bulan: bln, locked: isLocked, username: currentUser.username });
-        if (res.status === 'success') { UI.toast(res.message, 'success'); loadLocks(); }
-        else throw new Error(res.message);
     } catch(e) { UI.toast(e.message, 'error'); }
     UI.hideLoader();
 }

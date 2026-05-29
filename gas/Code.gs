@@ -24,8 +24,6 @@ function doPost(e) {
       case "submit_transaksi": result = handleSubmitTransaksi(payload); break;
       case "get_buku_kas": result = handleGetBukuKas(payload); break;
       case "get_dashboard": result = handleGetDashboard(); break;
-      case "get_locks": result = handleGetLocks(); break;
-      case "toggle_lock": result = handleToggleLock(payload); break;
       case "export_laporan": result = handleExportLaporan(payload); break;
     }
 
@@ -37,36 +35,6 @@ function doPost(e) {
 
 function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "API Aktif - Phase 3" })).setMimeType(ContentService.MimeType.JSON);
-}
-
-// ==========================================
-// UTILITIES
-// ==========================================
-
-function writeAuditLog(username, action, detail) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Audit_Log");
-  if (sheet) {
-    sheet.appendRow([new Date(), username, action, detail]);
-  }
-}
-
-function isMonthLocked(dateString) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Setting_Lock");
-  if (!sheet) return false;
-  
-  // Ambil YYYY-MM dari tanggal transaksi
-  const d = new Date(dateString);
-  const m = d.getMonth() + 1;
-  const mm = m < 10 ? '0' + m : m;
-  const yyyy_mm = d.getFullYear() + "-" + mm;
-
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === yyyy_mm && data[i][1] === true) {
-      return true; // Terkunci
-    }
-  }
-  return false;
 }
 
 // ==========================================
@@ -82,7 +50,6 @@ function handleLogin(payload) {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (row[1] == username && row[2] == password && row[5] == true) {
-      writeAuditLog(username, "LOGIN", "User berhasil login.");
       return { status: "success", data: { id: row[0], username: row[1], role: row[3], nama: row[4] } };
     }
   }
@@ -123,7 +90,6 @@ function handleAddMaster(payload) {
   } else throw new Error("Tipe master tidak valid.");
 
   sheet.appendRow(rowData);
-  writeAuditLog(payload.username, "ADD_MASTER", `Menambah ${payload.type}: ${payload.nama}`);
   return { status: "success", message: "Data berhasil ditambahkan." };
 }
 
@@ -143,7 +109,6 @@ function handleEditMaster(payload) {
     if (data[i][0] === id) {
       if (type === 'ruang') sheet.getRange(i + 1, 3).setValue(nama); // kolom 3
       else sheet.getRange(i + 1, 2).setValue(nama); // kolom 2
-      writeAuditLog(username, "EDIT_MASTER", `Mengubah ${type} ID ${id} menjadi ${nama}`);
       return { status: "success", message: "Data berhasil diubah." };
     }
   }
@@ -175,7 +140,6 @@ function handleDeleteMaster(payload) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === id) {
       sheet.deleteRow(i + 1);
-      writeAuditLog(username, "DELETE_MASTER", `Menghapus ${type} ID ${id}`);
       return { status: "success", message: "Data berhasil dihapus." };
     }
   }
@@ -183,11 +147,6 @@ function handleDeleteMaster(payload) {
 }
 
 function handleSubmitTransaksi(payload) {
-  // Pengecekan Lock Bulanan
-  if (isMonthLocked(payload.tanggal)) {
-    throw new Error(`Transaksi ditolak: Bulan ${payload.tanggal.substring(0, 7)} sudah dikunci (Locked).`);
-  }
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Buku_Kas");
   const data = sheet.getDataRange().getValues();
@@ -208,7 +167,6 @@ function handleSubmitTransaksi(payload) {
 
   const idTrx = "TRX-" + Utilities.getUuid().split('-')[0].toUpperCase();
   sheet.appendRow([idTrx, new Date(payload.tanggal), payload.uraian, payload.pos_belanja, debet, kredit, saldoAkhirSebelumnya, saldoAkhir, payload.keterangan || "", payload.id_bangunan, payload.id_ruang, payload.username]);
-  writeAuditLog(payload.username, "ADD_TRX", `Menambah transaksi ${idTrx} Rp${debet>0?debet:kredit}`);
 
   return { status: "success", message: "Transaksi berhasil dicatat." };
 }
@@ -291,32 +249,6 @@ function handleGetDashboard() {
   return { status: "success", data: { totalPemasukan: totalDebet, totalPengeluaran: totalKredit, totalSaldo: totalDebet - totalKredit, ringkasanBangunan: ringkasanBangunan, ringkasanRuang: ringkasanRuang } };
 }
 
-function handleGetLocks() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Setting_Lock");
-  const data = sheet.getDataRange().getValues();
-  data.shift(); // remove header
-  return { status: "success", data: data.map(r => ({ bulan: r[0], locked: r[1] })) };
-}
-
-function handleToggleLock(payload) {
-  const { bulan, locked, username } = payload; // bulan format YYYY-MM
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Setting_Lock");
-  const data = sheet.getDataRange().getValues();
-  
-  let found = false;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === bulan) {
-      sheet.getRange(i + 1, 2).setValue(locked);
-      found = true;
-      break;
-    }
-  }
-  if (!found) sheet.appendRow([bulan, locked]);
-
-  writeAuditLog(username, "TOGGLE_LOCK", `Lock bulan ${bulan} diubah menjadi ${locked}`);
-  return { status: "success", message: `Status lock untuk ${bulan} diperbarui.` };
-}
-
 function handleExportLaporan(payload) {
   const { id_ruang, format, username } = payload;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -372,8 +304,6 @@ function handleExportLaporan(payload) {
   // Hapus sheet temporer
   ss.deleteSheet(newSheet);
 
-  writeAuditLog(username, "EXPORT", `Mengekspor laporan ruang ${namaRuang} format ${format.toUpperCase()}`);
-
   return { status: "success", data: { fileData: base64Str, mimeType: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: `Laporan_BukuKas_${namaRuang}.${exportFormat}` } };
 }
 
@@ -409,16 +339,6 @@ function setupDatabase() {
       name: "Buku_Kas",
       headers: ["id_trx", "tanggal", "uraian", "id_pos", "debet", "kredit", "saldo_awal", "saldo_akhir", "keterangan", "id_bangunan", "id_ruang", "created_by"],
       dummyData: []
-    },
-    {
-      name: "Audit_Log",
-      headers: ["timestamp", "username", "action", "detail"],
-      dummyData: []
-    },
-    {
-      name: "Setting_Lock",
-      headers: ["bulan_yyyy_mm", "is_locked"],
-      dummyData: [ ["2026-04", true] ] // Contoh April dikunci
     }
   ];
 
