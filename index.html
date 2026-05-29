@@ -201,7 +201,7 @@
                             <p class="text-slate-500 text-sm">Catat & pantau riwayat transaksi.</p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="document.getElementById('modal-export').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                            <button id="btn-export-laporan" onclick="document.getElementById('modal-export').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2">
                                 <i class="ph ph-download-simple"></i> Export Laporan
                             </button>
                             <button onclick="document.getElementById('modal-transaksi').classList.remove('hidden')" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2">
@@ -314,6 +314,14 @@
                                         <div class="text-xs text-slate-500">Angka Saldo Akhir pada tabel Buku Kas akan diganti menjadi Rp ***.</div>
                                     </div>
                                     <input type="checkbox" id="setting-hide-saldo-akhir" class="w-5 h-5 accent-blue-600">
+                                </label>
+                                
+                                <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">
+                                    <div>
+                                        <div class="font-medium text-slate-800">Sembunyikan Tombol Ekspor Laporan</div>
+                                        <div class="text-xs text-slate-500">Menyembunyikan tombol 'Export Laporan' di halaman Buku Kas khusus Bendahara.</div>
+                                    </div>
+                                    <input type="checkbox" id="setting-hide-export" class="w-5 h-5 accent-blue-600">
                                 </label>
                                 
                                 <label class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors cursor-pointer">

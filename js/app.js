@@ -50,6 +50,18 @@ const UI = {
         } else if (pageId === 'aturan') {
             loadAturan();
         }
+
+        // Terapkan Aturan Visibilitas Tombol Ekspor di Buku Kas
+        if (pageId === 'buku-kas' || pageId === 'dashboard') {
+            const btnExport = document.getElementById('btn-export-laporan');
+            if (btnExport) {
+                if (currentUser && currentUser.role === 'bendahara' && masterData.pengaturan?.hide_export === true) {
+                    btnExport.style.display = 'none';
+                } else {
+                    btnExport.style.display = 'flex'; // kembalikan ke flex (tailwind class 'flex')
+                }
+            }
+        }
     },
     formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0); },
     formatRpInput(val) {
@@ -540,6 +552,7 @@ function loadAturan() {
     const p = masterData.pengaturan || {};
     document.getElementById('setting-hide-debet-alokasi').checked = p.hide_debet_alokasi === true || String(p.hide_debet_alokasi) === 'true';
     document.getElementById('setting-hide-saldo-akhir').checked = p.hide_saldo_akhir === true || String(p.hide_saldo_akhir) === 'true';
+    document.getElementById('setting-hide-export').checked = p.hide_export === true || String(p.hide_export) === 'true';
     document.getElementById('setting-hide-pemasukan-pengeluaran').checked = p.hide_pemasukan_pengeluaran === true || String(p.hide_pemasukan_pengeluaran) === 'true';
     document.getElementById('setting-hide-saldo-dashboard').checked = p.hide_saldo_dashboard === true || String(p.hide_saldo_dashboard) === 'true';
     document.getElementById('setting-hide-saldo-bangunan').checked = p.hide_saldo_bangunan === true || String(p.hide_saldo_bangunan) === 'true';
@@ -550,6 +563,7 @@ async function saveAturan() {
     const p = {
         hide_debet_alokasi: document.getElementById('setting-hide-debet-alokasi').checked,
         hide_saldo_akhir: document.getElementById('setting-hide-saldo-akhir').checked,
+        hide_export: document.getElementById('setting-hide-export').checked,
         hide_pemasukan_pengeluaran: document.getElementById('setting-hide-pemasukan-pengeluaran').checked,
         hide_saldo_dashboard: document.getElementById('setting-hide-saldo-dashboard').checked,
         hide_saldo_bangunan: document.getElementById('setting-hide-saldo-bangunan').checked,
