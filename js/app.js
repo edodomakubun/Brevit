@@ -351,14 +351,15 @@ function applyFilters() {
 
             let displayDebet = (item.debet > 0) ? UI.formatRp(item.debet) : '-';
             let displaySaldoAkhir = UI.formatRp(item.saldo_akhir);
+            const hiddenHtml = `<span class="inline-flex items-center gap-1 justify-end">Rp *** <button onclick="UI.toast('Akses Terkunci', 'error')" class="text-slate-400 hover:text-red-500 focus:outline-none transition-colors" title="Data Terkunci"><i class="ph ph-eye-slash"></i></button></span>`;
             
             // Aturan Visibilitas Bendahara
             if (currentUser && currentUser.role === 'bendahara' && masterData.pengaturan) {
                 if (masterData.pengaturan.hide_debet_alokasi === true && item.uraian === 'Alokasi Dana') {
-                    displayDebet = 'Rp ***';
+                    displayDebet = hiddenHtml;
                 }
                 if (masterData.pengaturan.hide_saldo_akhir === true) {
-                    displaySaldoAkhir = 'Rp ***';
+                    displaySaldoAkhir = hiddenHtml;
                 }
             }
 
@@ -432,15 +433,17 @@ function loadDashboard() {
         const hideSaldoBgn = isBendahara && String(p.hide_saldo_bangunan) === 'true';
         const hideRincianBgn = isBendahara && String(p.hide_rincian_bangunan) === 'true';
 
-        document.getElementById('dash-pemasukan').textContent = hidePemPeng ? 'Rp ***' : UI.formatRp(totalDebet);
-        document.getElementById('dash-pengeluaran').textContent = hidePemPeng ? 'Rp ***' : UI.formatRp(totalKredit);
-        document.getElementById('dash-saldo').textContent = hideSaldo ? 'Rp ***' : UI.formatRp(totalDebet - totalKredit);
+        const hiddenHtml = `<span class="inline-flex items-center gap-1 justify-end">Rp *** <button onclick="UI.toast('Akses Terkunci', 'error')" class="text-slate-400 hover:text-red-500 focus:outline-none transition-colors" title="Data Terkunci"><i class="ph ph-eye-slash"></i></button></span>`;
+
+        document.getElementById('dash-pemasukan').innerHTML = hidePemPeng ? hiddenHtml : UI.formatRp(totalDebet);
+        document.getElementById('dash-pengeluaran').innerHTML = hidePemPeng ? hiddenHtml : UI.formatRp(totalKredit);
+        document.getElementById('dash-saldo').innerHTML = hideSaldo ? hiddenHtml : UI.formatRp(totalDebet - totalKredit);
         
         document.getElementById('dash-bangunan-list').innerHTML = ringkasanBangunan.map(b => `
             <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span class="font-medium text-slate-700">${b.nama}</span>
                 <div class="text-right">
-                    <div class="text-sm font-bold text-slate-800">${hideSaldoBgn ? 'Rp ***' : UI.formatRp(b.saldo)}</div>
+                    <div class="text-sm font-bold text-slate-800">${hideSaldoBgn ? hiddenHtml : UI.formatRp(b.saldo)}</div>
                     <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
                 </div>
             </div>
@@ -448,7 +451,7 @@ function loadDashboard() {
         
         document.getElementById('dash-ruang-list').innerHTML = ringkasanRuang.map(r => `
             <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${hideSaldoBgn ? 'Rp ***' : UI.formatRp(r.saldo)}</span>
+                <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${hideSaldoBgn ? hiddenHtml : UI.formatRp(r.saldo)}</span>
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Kosong</p>';
         
@@ -465,7 +468,7 @@ function loadDashboard() {
                 <div class="mb-4 border border-slate-200 rounded-lg overflow-hidden">
                     <div class="bg-blue-50 px-4 py-3 flex justify-between items-center font-bold text-blue-900 border-b border-blue-100">
                         <div class="flex items-center gap-2"><i class="ph ph-buildings"></i> ${b.nama}</div>
-                        <div>${hideRincianBgn ? 'Rp ***' : UI.formatRp(b.total_saldo)}</div>
+                        <div>${hideRincianBgn ? hiddenHtml : UI.formatRp(b.total_saldo)}</div>
                     </div>
                     <div class="divide-y divide-slate-100 bg-white">
             `;
@@ -479,7 +482,7 @@ function loadDashboard() {
                     hierarkiHTML += `
                         <div class="px-4 py-2 flex justify-between items-center text-sm hover:bg-slate-50">
                             <div class="flex items-center gap-2 text-slate-600 pl-4"><i class="ph ph-door"></i> ${r.nama}</div>
-                            <div class="font-medium text-slate-800">${hideRincianBgn ? 'Rp ***' : UI.formatRp(saldoRng)}</div>
+                            <div class="font-medium text-slate-800">${hideRincianBgn ? hiddenHtml : UI.formatRp(saldoRng)}</div>
                         </div>
                     `;
                 });
