@@ -338,12 +338,16 @@ function applyFilters() {
             }
 
             let displayDebet = (item.debet > 0) ? UI.formatRp(item.debet) : '-';
+            let displaySaldoAkhir = UI.formatRp(item.saldo_akhir);
             
-            // Aturan Visibilitas: Sembunyikan Debet Alokasi Dana untuk Bendahara
-            if (currentUser && currentUser.role === 'bendahara' && 
-                masterData.pengaturan?.hide_debet_alokasi === true && 
-                item.uraian === 'Alokasi Dana') {
-                displayDebet = 'Rp ***';
+            // Aturan Visibilitas Bendahara
+            if (currentUser && currentUser.role === 'bendahara' && masterData.pengaturan) {
+                if (masterData.pengaturan.hide_debet_alokasi === true && item.uraian === 'Alokasi Dana') {
+                    displayDebet = 'Rp ***';
+                }
+                if (masterData.pengaturan.hide_saldo_akhir === true) {
+                    displaySaldoAkhir = 'Rp ***';
+                }
             }
 
             html += `
@@ -355,7 +359,7 @@ function applyFilters() {
                     <td class="px-4 py-3 text-sm">${item.pos || '-'}</td>
                     <td class="px-4 py-3 text-right text-emerald-600 font-medium">${displayDebet}</td>
                     <td class="px-4 py-3 text-right text-red-600 font-medium">${item.kredit > 0 ? UI.formatRp(item.kredit) : '-'}</td>
-                    <td class="px-4 py-3 text-right text-blue-700 font-bold">${UI.formatRp(item.saldo_akhir)}</td>
+                    <td class="px-4 py-3 text-right text-blue-700 font-bold">${displaySaldoAkhir}</td>
                 </tr>
             `;
         });
@@ -535,6 +539,7 @@ function loadAlokasiDana() {
 function loadAturan() {
     const p = masterData.pengaturan || {};
     document.getElementById('setting-hide-debet-alokasi').checked = p.hide_debet_alokasi === true || String(p.hide_debet_alokasi) === 'true';
+    document.getElementById('setting-hide-saldo-akhir').checked = p.hide_saldo_akhir === true || String(p.hide_saldo_akhir) === 'true';
     document.getElementById('setting-hide-pemasukan-pengeluaran').checked = p.hide_pemasukan_pengeluaran === true || String(p.hide_pemasukan_pengeluaran) === 'true';
     document.getElementById('setting-hide-saldo-dashboard').checked = p.hide_saldo_dashboard === true || String(p.hide_saldo_dashboard) === 'true';
     document.getElementById('setting-hide-saldo-bangunan').checked = p.hide_saldo_bangunan === true || String(p.hide_saldo_bangunan) === 'true';
@@ -544,6 +549,7 @@ function loadAturan() {
 async function saveAturan() {
     const p = {
         hide_debet_alokasi: document.getElementById('setting-hide-debet-alokasi').checked,
+        hide_saldo_akhir: document.getElementById('setting-hide-saldo-akhir').checked,
         hide_pemasukan_pengeluaran: document.getElementById('setting-hide-pemasukan-pengeluaran').checked,
         hide_saldo_dashboard: document.getElementById('setting-hide-saldo-dashboard').checked,
         hide_saldo_bangunan: document.getElementById('setting-hide-saldo-bangunan').checked,
