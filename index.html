@@ -82,6 +82,9 @@
                     <a href="#" data-page="master-data" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
                         <i class="ph ph-database text-xl"></i><span class="font-medium text-sm">Data Master</span>
                     </a>
+                    <a href="#" data-page="alokasi-dana" class="nav-link flex items-center gap-3 px-5 py-3 hover:bg-blue-800 transition-colors">
+                        <i class="ph ph-wallet text-xl"></i><span class="font-medium text-sm">Alokasi Dana</span>
+                    </a>
                 </div>
             </nav>
 
@@ -210,6 +213,38 @@
                     </div>
                 </div>
 
+                <!-- PAGE: Alokasi Dana -->
+                <div id="page-alokasi-dana" class="page-content hidden animate-fade-in flex flex-col h-full">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">Alokasi Dana</h2>
+                            <p class="text-slate-500 text-sm">Manajemen pagu anggaran dan pemasukan per ruang.</p>
+                        </div>
+                        <button onclick="document.getElementById('modal-alokasi').classList.remove('hidden')" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                            <i class="ph ph-plus-circle"></i> Input Alokasi
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 overflow-hidden">
+                        <div class="overflow-x-auto h-full">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-5 py-4">Bangunan</th>
+                                        <th class="px-5 py-4">Ruang Kelas</th>
+                                        <th class="px-5 py-4 text-right">Total Alokasi (Debet)</th>
+                                        <th class="px-5 py-4 text-right">Terserap (Kredit)</th>
+                                        <th class="px-5 py-4 text-right">Sisa Saldo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-alokasi-dana" class="divide-y divide-slate-100">
+                                    <!-- Rendered via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -259,6 +294,36 @@
                     <button onclick="handleExport('xlsx')" class="flex-1 bg-emerald-600 text-white py-2 rounded font-medium flex justify-center items-center gap-2"><i class="ph ph-microsoft-excel-logo"></i> Excel</button>
                     <button onclick="handleExport('pdf')" class="flex-1 bg-red-500 text-white py-2 rounded font-medium flex justify-center items-center gap-2"><i class="ph ph-file-pdf"></i> PDF</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALOKASI DANA -->
+    <div id="modal-alokasi" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800">Input Alokasi Dana</h3>
+                <button onclick="document.getElementById('modal-alokasi').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="form-alokasi" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Pilih Bangunan</label>
+                        <select id="alokasi-bangunan" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Pilih Ruang Kelas</label>
+                        <select id="alokasi-ruang" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nominal Alokasi (Rp)</label>
+                        <input type="text" id="alokasi-nominal" required placeholder="Contoh: 50000000" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-blue-700 bg-slate-50">
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-alokasi').classList.add('hidden')" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 font-medium transition-colors">Batal</button>
+                <button type="button" onclick="submitAlokasi()" class="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium shadow-md transition-colors flex items-center gap-2"><i class="ph ph-floppy-disk"></i> Simpan</button>
             </div>
         </div>
     </div>

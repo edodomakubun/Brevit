@@ -124,6 +124,10 @@ async function syncAllData(isBackground = false) {
             applyFilters();
             loadDashboard();
             renderMasterData();
+         } else if (pageId === 'master-data') {
+            loadMasterData();
+        } else if (pageId === 'alokasi-dana') {
+            loadAlokasiDana();
         } else {
             throw new Error(res.message);
         }
@@ -201,6 +205,10 @@ function populateDropdowns() {
     document.getElementById('input-bangunan').innerHTML = renderModalOpts(masterData.bangunan);
     document.getElementById('input-ruang').innerHTML = '<option value="">-- Pilih Bangunan Dulu --</option>'; // Dinamis
     document.getElementById('input-pos').innerHTML = renderModalOpts(masterData.pos);
+    
+    // Alokasi Dana Dropdowns
+    const alokasiBangunan = document.getElementById('alokasi-bangunan');
+    if (alokasiBangunan) alokasiBangunan.innerHTML = renderModalOpts(masterData.bangunan);
 }
 
 async function submitTransaksi() {
@@ -405,42 +413,150 @@ function loadDashboard() {
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Kosong</p>';
         
-        let htmlHierarki = '';
-        masterData.bangunan.forEach(b => {
-            const bInfo = bgnMap[b.id];
-            const saldoBgn = bInfo ? bInfo.total_saldo : 0;
-            const childRooms = masterData.ruang.filter(r => r.id_bangunan === b.id);
-            
-            htmlHierarki += `
-                <div class="mb-4 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-4 py-3 flex justify-between items-center border-b border-slate-200">
-                        <span class="font-bold text-slate-800">${b.nama}</span>
-                        <span class="font-bold text-blue-700">${UI.formatRp(saldoBgn)}</span>
+        // HIERARKI RENDERER (Bangunan -> Ruang)
+        const hierarkiList = document.getElementById('dash-hierarki-list');
+        let hierarkiHTML = '';
+        
+        // Sort Bangunan Name
+        const sortedBangunanKeys = Object.keys(bgnMap).sort((a,b) => bgnMap[a].nama.localeCompare(bgnMap[b].nama));
+        
+        sortedBangunanKeys.forEach(bId => {
+            const b = bgnMap[bId];
+            hierarkiHTML += `
+                <div class="mb-4 border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="bg-blue-50 px-4 py-3 flex justify-between items-center font-bold text-blue-900 border-b border-blue-100">
+                        <div class="flex items-center gap-2"><i class="ph ph-buildings"></i> ${b.nama}</div>
+                        <div>${UI.formatRp(b.total_saldo)}</div>
                     </div>
                     <div class="divide-y divide-slate-100 bg-white">
             `;
             
-            if (childRooms.length > 0) {
-                childRooms.forEach(r => {
+            // Find rooms for this building
+            const roomsForThisBuilding = masterData.ruang.filter(r => r.id_bangunan === bId);
+            if(roomsForThisBuilding.length > 0) {
+                roomsForThisBuilding.forEach(r => {
                     const rInfo = rekapRuang[r.id];
                     const saldoRng = rInfo ? rInfo.saldo_akhir : 0;
-                    htmlHierarki += `
-                        <div class="px-4 py-2.5 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <i class="ph ph-arrow-elbow-down-right text-slate-300 ml-2 text-lg"></i>
-                                <span class="text-sm text-slate-600 font-medium">${r.nama}</span>
-                            </div>
-                            <span class="text-sm font-semibold text-slate-700">${UI.formatRp(saldoRng)}</span>
+                    hierarkiHTML += `
+                        <div class="px-4 py-2 flex justify-between items-center text-sm hover:bg-slate-50">
+                            <div class="flex items-center gap-2 text-slate-600 pl-4"><i class="ph ph-door"></i> ${r.nama}</div>
+                            <div class="font-medium text-slate-800">${UI.formatRp(saldoRng)}</div>
                         </div>
                     `;
                 });
             } else {
-                htmlHierarki += `<div class="px-4 py-3 text-sm text-slate-400 italic pl-10">Belum ada ruang kelas.</div>`;
+                hierarkiHTML += `<div class="px-4 py-2 text-sm text-slate-400 italic pl-4">Belum ada data ruang</div>`;
             }
-            htmlHierarki += `</div></div>`;
+            hierarkiHTML += `</div></div>`;
         });
         
-        document.getElementById('dash-hierarki-list').innerHTML = htmlHierarki || '<p class="text-sm text-slate-400">Belum ada data bangunan.</p>';
+        hierarkiList.innerHTML = hierarkiHTML || '<p class="text-sm text-slate-400">Belum ada data hierarki.</p>';
+    }
+}
+
+function loadAlokasiDana() {
+    const tbody = document.getElementById('table-alokasi-dana');
+    if (!tbody) return;
+
+    if (!masterData.ruang || masterData.ruang.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-4 text-center text-slate-400">Data Master Ruang belum tersedia.</td></tr>';
+        return;
+    }
+
+    const totals = {};
+    masterData.ruang.forEach(r => {
+        totals[r.id] = { debet: 0, kredit: 0 };
+    });
+
+    currentBukuKasData.forEach(trx => {
+        if (totals[trx.id_ruang]) {
+            totals[trx.id_ruang].debet += parseFloat(trx.debet) || 0;
+            totals[trx.id_ruang].kredit += parseFloat(trx.kredit) || 0;
+        }
+    });
+
+    const bgnMap = {};
+    masterData.bangunan.forEach(b => bgnMap[b.id] = b.nama);
+
+    let html = '';
+    // Kelompokkan per bangunan untuk tampilan rapi
+    const grouped = {};
+    masterData.ruang.forEach(r => {
+        const bNama = bgnMap[r.id_bangunan] || 'Tidak Diketahui';
+        if (!grouped[bNama]) grouped[bNama] = [];
+        grouped[bNama].push(r);
+    });
+
+    Object.keys(grouped).sort().forEach(bNama => {
+        grouped[bNama].forEach(r => {
+            const debet = totals[r.id].debet;
+            const kredit = totals[r.id].kredit;
+            const saldo = debet - kredit;
+
+            html += `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-5 py-3 text-slate-600">${bNama}</td>
+                    <td class="px-5 py-3 font-medium text-slate-800">${r.nama}</td>
+                    <td class="px-5 py-3 text-right text-emerald-600 font-medium">${UI.formatRp(debet)}</td>
+                    <td class="px-5 py-3 text-right text-red-600 font-medium">${UI.formatRp(kredit)}</td>
+                    <td class="px-5 py-3 text-right text-blue-700 font-bold">${UI.formatRp(saldo)}</td>
+                </tr>
+            `;
+        });
+    });
+
+    tbody.innerHTML = html;
+}
+
+async function submitAlokasi() {
+    const bgn = document.getElementById('alokasi-bangunan').value;
+    const rng = document.getElementById('alokasi-ruang').value;
+    const nominalRaw = document.getElementById('alokasi-nominal').value.replace(/[^0-9]/g, '');
+    
+    if (!bgn || !rng || !nominalRaw) {
+        UI.toast('Semua kolom wajib diisi!', 'error');
+        return;
+    }
+
+    const nominal = parseInt(nominalRaw);
+    if (nominal <= 0) {
+        UI.toast('Nominal harus lebih dari 0', 'error');
+        return;
+    }
+
+    // Buat format tanggal hari ini YYYY-MM-DD
+    const today = new Date();
+    const tgl = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    const payload = {
+        action: 'submit_transaksi',
+        tanggal: tgl,
+        jenis: 'debet',
+        uraian: 'Alokasi Dana',
+        id_bangunan: bgn,
+        id_ruang: rng,
+        pos_belanja: '', // Alokasi biasanya tidak ada pos belanja
+        debet: nominal,
+        kredit: 0,
+        keterangan: 'Pencairan/Alokasi Dana',
+        username: currentUser.username
+    };
+
+    try {
+        UI.showLoader('Menyimpan Alokasi...');
+        const res = await API.post(payload);
+        UI.hideLoader();
+        if (res.status === 'success') {
+            document.getElementById('modal-alokasi').classList.add('hidden');
+            document.getElementById('form-alokasi').reset();
+            UI.toast('Alokasi Dana berhasil ditambahkan!', 'success');
+            syncAllData(); // Reload all
+        } else {
+            UI.toast('Error: ' + res.message, 'error');
+        }
+    } catch (error) {
+        UI.hideLoader();
+        UI.toast('Gagal memproses transaksi: ' + error.message, 'error');
     }
 }
 
@@ -500,7 +616,7 @@ async function handleExport(format) {
 
             worksheet.getCell('A1').value = 'LAPORAN BUKU KAS REVITALISASI';
             worksheet.getCell('A1').font = { bold: true, size: 14 };
-            worksheet.getCell('A2').value = 'SDN PERCONTOHAN';
+            worksheet.getCell('A2').value = 'SD INPRES LELINGLUAN';
             worksheet.getCell('A2').font = { bold: true };
             worksheet.getCell('A3').value = `Konteks: ${titleContext}`;
             worksheet.addRow([]);
@@ -562,7 +678,7 @@ async function handleExport(format) {
             doc.text("LAPORAN BUKU KAS REVITALISASI", 40, 40);
             
             doc.setFontSize(12);
-            doc.text("SDN PERCONTOHAN", 40, 60);
+            doc.text("SD INPRES LELINGLUAN", 40, 60);
             doc.setFont("helvetica", "normal");
             doc.text(`Konteks: ${titleContext}`, 40, 80);
             
@@ -606,7 +722,7 @@ async function handleExport(format) {
         UI.toast('Berhasil mengunduh laporan.', 'success');
     } catch(e) { 
         console.error(e);
-        UI.toast('Gagal mengekspor laporan: ' + e.message, 'error'); 
+        UI.toast('Gagal memproses transaksi: ' + e.message, 'error');
     }
     UI.hideLoader();
 }
@@ -648,6 +764,22 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('export-ruang').innerHTML = renderModalOpts(filteredRuang);
         }
     });
+
+    // Dynamic Dropdown Bangunan -> Ruang (Modal Alokasi)
+    document.getElementById('alokasi-bangunan')?.addEventListener('change', function(e) {
+        const bId = e.target.value;
+        const filteredRuang = bId ? masterData.ruang.filter(r => r.id_bangunan === bId) : [];
+        const renderModalOpts = (arr) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option value="${x.id}">${x.nama}</option>`).join('');
+        document.getElementById('alokasi-ruang').innerHTML = bId ? renderModalOpts(filteredRuang) : '<option value="">-- Pilih Bangunan Dulu --</option>';
+    });
+
+    // Format Nominal Alokasi Dana
+    const alokasiNominal = document.getElementById('alokasi-nominal');
+    if (alokasiNominal) {
+        alokasiNominal.addEventListener('keyup', function() { 
+            this.value = UI.formatRpInput(this.value); 
+        });
+    }
 
     // Auto-refresh Dashboard button support (since it no longer fetches from API)
     document.querySelector('button[onclick="loadDashboard()"]')?.addEventListener('click', (e) => {
