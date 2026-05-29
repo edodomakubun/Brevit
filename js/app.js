@@ -408,23 +408,31 @@ function loadDashboard() {
     const ringkasanBangunan = Object.keys(bgnMap).map(bId => ({ nama: bgnMap[bId].nama, pengeluaran: bgnMap[bId].total_pengeluaran, saldo: bgnMap[bId].total_saldo }));
 
     if(document.getElementById('dash-pemasukan')){
-        document.getElementById('dash-pemasukan').textContent = UI.formatRp(totalDebet);
-        document.getElementById('dash-pengeluaran').textContent = UI.formatRp(totalKredit);
-        document.getElementById('dash-saldo').textContent = UI.formatRp(totalDebet - totalKredit);
+        const isBendahara = currentUser && currentUser.role === 'bendahara';
+        const p = masterData.pengaturan || {};
+        
+        const hidePemPeng = isBendahara && String(p.hide_pemasukan_pengeluaran) === 'true';
+        const hideSaldo = isBendahara && String(p.hide_saldo_dashboard) === 'true';
+        const hideSaldoBgn = isBendahara && String(p.hide_saldo_bangunan) === 'true';
+        const hideRincianBgn = isBendahara && String(p.hide_rincian_bangunan) === 'true';
+
+        document.getElementById('dash-pemasukan').textContent = hidePemPeng ? 'Rp ***' : UI.formatRp(totalDebet);
+        document.getElementById('dash-pengeluaran').textContent = hidePemPeng ? 'Rp ***' : UI.formatRp(totalKredit);
+        document.getElementById('dash-saldo').textContent = hideSaldo ? 'Rp ***' : UI.formatRp(totalDebet - totalKredit);
         
         document.getElementById('dash-bangunan-list').innerHTML = ringkasanBangunan.map(b => `
             <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                 <span class="font-medium text-slate-700">${b.nama}</span>
                 <div class="text-right">
-                    <div class="text-sm font-bold text-slate-800">${UI.formatRp(b.saldo)}</div>
-                    <div class="text-[10px] text-red-500">Kredit: ${UI.formatRp(b.pengeluaran)}</div>
+                    <div class="text-sm font-bold text-slate-800">${hideSaldoBgn ? 'Rp ***' : UI.formatRp(b.saldo)}</div>
+                    <div class="text-[10px] text-red-500">Kredit: ${hideSaldoBgn ? 'Rp ***' : UI.formatRp(b.pengeluaran)}</div>
                 </div>
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Belum ada data.</p>';
         
         document.getElementById('dash-ruang-list').innerHTML = ringkasanRuang.map(r => `
             <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${UI.formatRp(r.saldo)}</span>
+                <span class="text-sm text-slate-700">${r.nama}</span><span class="text-sm font-bold text-blue-600">${hideSaldoBgn ? 'Rp ***' : UI.formatRp(r.saldo)}</span>
             </div>
         `).join('') || '<p class="text-sm text-slate-400">Kosong</p>';
         
@@ -441,7 +449,7 @@ function loadDashboard() {
                 <div class="mb-4 border border-slate-200 rounded-lg overflow-hidden">
                     <div class="bg-blue-50 px-4 py-3 flex justify-between items-center font-bold text-blue-900 border-b border-blue-100">
                         <div class="flex items-center gap-2"><i class="ph ph-buildings"></i> ${b.nama}</div>
-                        <div>${UI.formatRp(b.total_saldo)}</div>
+                        <div>${hideRincianBgn ? 'Rp ***' : UI.formatRp(b.total_saldo)}</div>
                     </div>
                     <div class="divide-y divide-slate-100 bg-white">
             `;
@@ -455,7 +463,7 @@ function loadDashboard() {
                     hierarkiHTML += `
                         <div class="px-4 py-2 flex justify-between items-center text-sm hover:bg-slate-50">
                             <div class="flex items-center gap-2 text-slate-600 pl-4"><i class="ph ph-door"></i> ${r.nama}</div>
-                            <div class="font-medium text-slate-800">${UI.formatRp(saldoRng)}</div>
+                            <div class="font-medium text-slate-800">${hideRincianBgn ? 'Rp ***' : UI.formatRp(saldoRng)}</div>
                         </div>
                     `;
                 });
@@ -466,25 +474,6 @@ function loadDashboard() {
         });
         
         hierarkiList.innerHTML = hierarkiHTML || '<p class="text-sm text-slate-400">Belum ada data hierarki.</p>';
-    }
-
-    // Terapkan Pengaturan Visibilitas untuk Bendahara
-    if (currentUser && currentUser.role === 'bendahara' && masterData.pengaturan) {
-        const p = masterData.pengaturan;
-        if (document.getElementById('widget-total-saldo')) {
-            document.getElementById('widget-total-saldo').style.display = p.hide_saldo_dashboard ? 'none' : 'block';
-        }
-        if (document.getElementById('widget-saldo-bangunan')) {
-            document.getElementById('widget-saldo-bangunan').style.display = p.hide_saldo_bangunan ? 'none' : 'block';
-        }
-        if (document.getElementById('widget-rincian-bangunan')) {
-            document.getElementById('widget-rincian-bangunan').style.display = p.hide_rincian_bangunan ? 'none' : 'block';
-        }
-    } else {
-        // Tampilkan semua jika bukan bendahara atau pengaturan belum dimuat
-        if (document.getElementById('widget-total-saldo')) document.getElementById('widget-total-saldo').style.display = 'block';
-        if (document.getElementById('widget-saldo-bangunan')) document.getElementById('widget-saldo-bangunan').style.display = 'block';
-        if (document.getElementById('widget-rincian-bangunan')) document.getElementById('widget-rincian-bangunan').style.display = 'block';
     }
 }
 
@@ -546,6 +535,7 @@ function loadAlokasiDana() {
 function loadAturan() {
     const p = masterData.pengaturan || {};
     document.getElementById('setting-hide-debet-alokasi').checked = p.hide_debet_alokasi === true || String(p.hide_debet_alokasi) === 'true';
+    document.getElementById('setting-hide-pemasukan-pengeluaran').checked = p.hide_pemasukan_pengeluaran === true || String(p.hide_pemasukan_pengeluaran) === 'true';
     document.getElementById('setting-hide-saldo-dashboard').checked = p.hide_saldo_dashboard === true || String(p.hide_saldo_dashboard) === 'true';
     document.getElementById('setting-hide-saldo-bangunan').checked = p.hide_saldo_bangunan === true || String(p.hide_saldo_bangunan) === 'true';
     document.getElementById('setting-hide-rincian-bangunan').checked = p.hide_rincian_bangunan === true || String(p.hide_rincian_bangunan) === 'true';
@@ -554,6 +544,7 @@ function loadAturan() {
 async function saveAturan() {
     const p = {
         hide_debet_alokasi: document.getElementById('setting-hide-debet-alokasi').checked,
+        hide_pemasukan_pengeluaran: document.getElementById('setting-hide-pemasukan-pengeluaran').checked,
         hide_saldo_dashboard: document.getElementById('setting-hide-saldo-dashboard').checked,
         hide_saldo_bangunan: document.getElementById('setting-hide-saldo-bangunan').checked,
         hide_rincian_bangunan: document.getElementById('setting-hide-rincian-bangunan').checked
